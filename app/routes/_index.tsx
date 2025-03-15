@@ -5,7 +5,7 @@ import Chat from "~/components/Chat";
 import { createChatCompletion } from "~/utils/chat";
 
 // Types
-import type {  ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs } from "@remix-run/node";
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();

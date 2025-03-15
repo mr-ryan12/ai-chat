@@ -53,7 +53,7 @@ export async function createChatCompletion(
       new HumanMessage(message),
     ];
 
-    const response = await model.call(messages);
+    const response = await model.invoke(messages);
 
     // Save the messages to the database
     await prisma.message.create({
