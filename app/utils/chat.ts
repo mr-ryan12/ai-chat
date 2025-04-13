@@ -58,7 +58,6 @@ const toolImplementations = {
     return `Search results for "${params.query}": [Mock search results]`;
   },
   get_time_in_timezone: async (params: { timezone: string }) => {
-    console.log("timezone>>>>>", params.timezone);
     try {
       return new Date().toLocaleString("en-US", { timeZone: params.timezone });
     } catch (error) {
