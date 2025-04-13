@@ -9,6 +9,7 @@ interface Message {
 interface ActionData {
   message?: string;
   response?: string;
+  words?: string[];
   error?: string;
   conversationId?: string;
 }
@@ -17,18 +18,19 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState<string>();
+  const [streamingResponse, setStreamingResponse] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
   useEffect(() => {
-    if (actionData?.response && actionData?.message) {
-      const newMessages: Message[] = [
-        { role: "user", content: actionData.message },
-        { role: "assistant", content: actionData.response },
-      ];
-      setMessages((prev) => [...prev, ...newMessages]);
+    if (actionData?.message) {
+      const newMessage: Message = {
+        role: "user",
+        content: actionData.message,
+      };
+      setMessages((prev) => [...prev, newMessage]);
       if (actionData.conversationId) {
         setConversationId(actionData.conversationId);
       }
@@ -37,8 +39,33 @@ export default function Chat() {
   }, [actionData]);
 
   useEffect(() => {
+    if (actionData?.words && actionData.words.length > 0) {
+      setStreamingResponse("");
+      let currentIndex = 0;
+      const interval = setInterval(() => {
+        if (currentIndex < actionData.words!.length) {
+          setStreamingResponse(
+            (prev) => prev + actionData.words![currentIndex] + " "
+          );
+          currentIndex++;
+        } else {
+          clearInterval(interval);
+          const newMessage: Message = {
+            role: "assistant",
+            content: actionData.response || "",
+          };
+          setMessages((prev) => [...prev, newMessage]);
+          setStreamingResponse("");
+        }
+      }, 50); // 50ms delay between words
+
+      return () => clearInterval(interval);
+    }
+  }, [actionData?.words, actionData?.response]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, streamingResponse]);
 
   return (
     <div className="flex flex-col h-screen max-w-4xl mx-auto p-4">
@@ -61,7 +88,14 @@ export default function Chat() {
             </div>
           </div>
         ))}
-        {isSubmitting && (
+        {streamingResponse && (
+          <div className="flex justify-start">
+            <div className="bg-gray-200 text-gray-800 rounded-lg p-4">
+              {streamingResponse}
+            </div>
+          </div>
+        )}
+        {isSubmitting && !streamingResponse && (
           <div className="flex justify-start">
             <div className="bg-gray-200 text-gray-800 rounded-lg p-4">
               Thinking...

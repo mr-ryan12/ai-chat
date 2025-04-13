@@ -53,9 +53,7 @@ export async function createChatCompletion(
       new HumanMessage(message),
     ];
 
-    const response = await model.invoke(messages);
-
-    // Save the messages to the database
+    // Save user message
     await prisma.message.create({
       data: {
         content: message,
@@ -64,16 +62,24 @@ export async function createChatCompletion(
       },
     });
 
+    const response = await model.invoke(messages);
+    const fullResponse = response.content.toString();
+
+    // Save assistant message
     await prisma.message.create({
       data: {
-        content: response.content.toString(),
+        content: fullResponse,
         role: "assistant",
         conversationId: conversation.id,
       },
     });
 
+    // Split response into words
+    const words = fullResponse.split(/\s+/);
+
     return {
-      response: response.content,
+      response: fullResponse,
+      words,
       conversationId: conversation.id,
     };
   } catch (error) {
