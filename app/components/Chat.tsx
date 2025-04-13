@@ -44,9 +44,11 @@ export default function Chat() {
       let currentIndex = 0;
       const interval = setInterval(() => {
         if (currentIndex < actionData.words!.length) {
-          setStreamingResponse(
-            (prev) => prev + actionData.words![currentIndex] + " "
-          );
+          let word = actionData.words![currentIndex];
+          if (currentIndex === 0) {
+            word = word.charAt(0).toUpperCase() + word.slice(1);
+          }
+          setStreamingResponse((prev) => prev + word + " ");
           currentIndex++;
         } else {
           clearInterval(interval);
