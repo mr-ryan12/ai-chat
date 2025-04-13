@@ -10,11 +10,13 @@ interface ActionData {
   message?: string;
   response?: string;
   error?: string;
+  conversationId?: string;
 }
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [conversationId, setConversationId] = useState<string>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
@@ -27,6 +29,9 @@ export default function Chat() {
         { role: "assistant", content: actionData.response },
       ];
       setMessages((prev) => [...prev, ...newMessages]);
+      if (actionData.conversationId) {
+        setConversationId(actionData.conversationId);
+      }
       setInput("");
     }
   }, [actionData]);
@@ -66,6 +71,7 @@ export default function Chat() {
         <div ref={messagesEndRef} />
       </div>
       <Form method="post" className="flex gap-2">
+        <input type="hidden" name="conversationId" value={conversationId} />
         <input
           type="text"
           name="message"

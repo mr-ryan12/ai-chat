@@ -1,29 +1,35 @@
-// Components
+import { type ActionFunctionArgs } from "@remix-run/node";
 import Chat from "~/components/Chat";
-
-// Utils
 import { createChatCompletion } from "~/utils/chat";
-
-// Types
-import type { ActionFunctionArgs } from "@remix-run/node";
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const message = formData.get("message") as string;
+  const conversationId = formData.get("conversationId") as string | undefined;
+
   if (!message) {
     return Response.json({ error: "Message is required" }, { status: 400 });
   }
 
   try {
-    const { response } = await createChatCompletion(message);
-    return Response.json({ message, response });
+    const { response, conversationId: newConversationId } =
+      await createChatCompletion(message, conversationId);
+
+    return Response.json({
+      message,
+      response,
+      conversationId: newConversationId,
+    });
   } catch (error) {
     console.error("Chat error details:", {
       message: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,
       error,
     });
-    return Response.json({ error: "Failed to process message" }, { status: 500 });
+    return Response.json(
+      { error: "Failed to process message" },
+      { status: 500 }
+    );
   }
 }
 

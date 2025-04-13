@@ -20,7 +20,7 @@ export async function createChatCompletion(
 
     const model = new ChatOpenAI({
       modelName: "gpt-4",
-      temperature: 0.4,
+      temperature: 0.7,
       openAIApiKey: process.env.OPENAI_API_KEY,
     });
 
