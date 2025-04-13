@@ -12,12 +12,16 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    const { response, conversationId: newConversationId } =
-      await createChatCompletion(message, conversationId);
+    const {
+      response,
+      words,
+      conversationId: newConversationId,
+    } = await createChatCompletion(message, conversationId);
 
     return Response.json({
       message,
       response,
+      words,
       conversationId: newConversationId,
     });
   } catch (error) {
