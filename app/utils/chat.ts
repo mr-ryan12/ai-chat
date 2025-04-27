@@ -7,55 +7,78 @@ import {
 import { prisma } from "./db.server";
 
 // Define the tool interface
-interface Tool {
-  name: string;
-  description: string;
-  parameters: {
-    type: string;
-    properties: Record<string, unknown>;
-    required: string[];
-  };
-}
+// interface Tool {
+//   type: string;
+//   name: string;
+//   description: string;
+//   parameters: {
+//     type: string;
+//     properties: Record<string, unknown>;
+//     required: string[];
+//   };
+// }
 
 // Define available tools
-const tools: Tool[] = [
+const tools = [
   {
-    name: "search_web",
-    description: "Search the web for additional information",
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "The search query to look up",
+    type: "function",
+    function: {
+      name: "search_web",
+      description: "Search the web for additional information",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The search query to look up",
+          },
         },
+        required: ["query"],
       },
-      required: ["query"],
     },
   },
   {
-    name: "get_time_in_timezone",
-    description: "Get the current time in a specific timezone",
-    parameters: {
-      type: "object",
-      properties: {
-        timezone: {
-          type: "string",
-          description:
-            "The timezone to get the time for (e.g., 'America/New_York', 'Europe/London')",
+    type: "function",
+    function: {
+      name: "get_time_in_timezone",
+      description: "Get the current time in a specific timezone",
+      parameters: {
+        type: "object",
+        properties: {
+          timezone: {
+            type: "string",
+            description:
+              "The timezone to get the time for (e.g., 'America/New_York', 'Europe/London')",
+          },
         },
+        required: ["timezone"],
       },
-      required: ["timezone"],
     },
   },
 ];
 
 // Tool implementations
 const toolImplementations = {
-  search_web: async (params: { query: string }) => {
-    // In a real implementation, you would call a search API here
-    // For now, we'll return a mock response
-    return `Search results for "${params.query}": [Mock search results]`;
+  search_web: async ({ query }: { query: string }) => {
+    console.log("query>>>", query);
+    try {
+      const apiKey = process.env.SERPAPI_KEY!;
+      const url = `https://serpapi.com/search.json?q=${encodeURIComponent(
+        query
+      )}&api_key=${apiKey}`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.organic_results?.length) {
+        return data.organic_results[0].snippet || "No summary available.";
+      } else {
+        return "No relevant search results found.";
+      }
+    } catch (error) {
+      // TODO: Pino logger
+      console.log("error>>>>>>", error);
+    }
   },
   get_time_in_timezone: async (params: { timezone: string }) => {
     try {
@@ -79,10 +102,10 @@ export async function createChatCompletion(
   conversationId?: string
 ) {
   const model = new ChatOpenAI({
-    modelName: "gpt-4-turbo-preview",
-    temperature: 0.7,
+    modelName: "gpt-4o", // You should consider switching to gpt-4o at this point
+    temperature: 0,
   });
-  console;
+
   let conversation;
   if (conversationId) {
     conversation = await prisma.conversation.findUnique({
@@ -112,46 +135,80 @@ export async function createChatCompletion(
   messages.push(new HumanMessage(message));
 
   // Update the system message
-  const systemMessage = new SystemMessage(
-    `You are a helpful AI assistant. You have access to the following tools:
+  const systemMessage = new SystemMessage(`
+    You are a helpful AI assistant embedded in a web application. You have access to the following tools:
+    
     ${JSON.stringify(tools, null, 2)}
     
-    If you need additional information to answer a question, you can use these tools.
-    When using a tool, respond with a JSON object containing:
+    🧠 KNOWLEDGE AND TOOL USAGE INSTRUCTIONS:
+    
+    1. If you already know the answer with high confidence, respond directly in natural language.
+    
+    2. If you are unsure or the answer may not be in your training data, you MUST use the "search_web" tool.
+    
+       ❗ DO NOT speculate, hedge, or mention the limits of your training data.
+    
+       ❗ DO NOT say things like:
+       - "I am not sure"
+       - "I am unable to provide..."
+       - "As of my last update"
+       - "Check the official website"
+       - "I recommend searching online"
+    
+    3. When using a tool, respond with **only** a valid JSON object in the following format:
+    
     {
       "tool": "tool_name",
-      "params": { ... }
+      "params": {
+        // required parameters here
+      }
     }
     
-    For time-related questions, always use the get_time_in_timezone tool with the appropriate timezone.
-    I will then execute the tool and provide you with the results.`
-  );
+    4. Use "search_web" as the **default fallback** tool for any question where your answer is incomplete, uncertain, or possibly outdated.
+    
+    💡EXAMPLES:
+    - “What is the capital of Japan?” → direct answer ✅
+    - “What are the 2024 color options for the Jeep Wrangler?” → use "search_web" ❗
+    
+    After using a tool, I will return the result so you can respond to the user.
+    
+    Do not include any non-JSON text when using a tool.
+    `);
 
   // Get initial response from the model
-  const response = await model.invoke([systemMessage, ...messages]);
-  let fullResponse = response.content.toString();
-
+  const response = await model.invoke([systemMessage, ...messages], {
+    tools: tools, // 👈 pass tools here
+    tool_choice: "auto", // 👈 and toolChoice here
+  });
+  let fullResponse = "";
   // Check if the response is a tool call
   try {
-    const toolCall = JSON.parse(fullResponse);
-    if (toolCall.tool && toolCall.params) {
-      // Execute the tool
-      const toolResult = await toolImplementations[
-        toolCall.tool as keyof typeof toolImplementations
-      ](toolCall.params);
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      const toolCall = response.tool_calls[0]; // You are correctly accessing the first tool call
 
-      // Get final response with tool results
+      const toolName = toolCall.name;
+      const args = toolCall.args;
+
+      console.log("Tool call detected:", toolName, args);
+
+      const toolResult = await toolImplementations[
+        toolName as keyof typeof toolImplementations
+      ](args);
+
       const finalResponse = await model.invoke([
         systemMessage,
         ...messages,
-        new AIMessage(fullResponse),
-        new HumanMessage(`Tool result: ${toolResult}`),
+        new AIMessage(`Tool ${toolName} was called with result: ${toolResult}`),
       ]);
 
       fullResponse = finalResponse.content.toString();
+    } else if (response.content) {
+      // Natural language response
+      fullResponse = response.content.toString();
     }
   } catch (e) {
     // If parsing fails, it's not a tool call - use the original response
+    console.log("error>>>>>", e);
   }
 
   // Save the messages
