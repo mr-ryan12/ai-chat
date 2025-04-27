@@ -9,6 +9,9 @@ import {
 // Server
 import { prisma } from "./db.server";
 
+// Types
+import { IDatabaseMessage } from "~/types/chat.types";
+
 // Define available tools
 const tools = [
   {
@@ -79,13 +82,7 @@ const toolImplementations = {
   },
 };
 
-interface DatabaseMessage {
-  content: string;
-  role: string;
-  conversationId: string;
-  id: string;
-  createdAt: Date;
-}
+
 
 export async function createChatCompletion(
   message: string,
@@ -113,7 +110,7 @@ export async function createChatCompletion(
     throw new Error("Failed to create or find conversation");
   }
 
-  const messages = conversation.messages.map((msg: DatabaseMessage) => {
+  const messages = conversation.messages.map((msg: IDatabaseMessage) => {
     if (msg.role === "user") {
       return new HumanMessage(msg.content);
     } else {
