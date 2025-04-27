@@ -1,22 +1,13 @@
+// Packages
 import { ChatOpenAI } from "@langchain/openai";
 import {
   HumanMessage,
   SystemMessage,
   AIMessage,
 } from "@langchain/core/messages";
-import { prisma } from "./db.server";
 
-// Define the tool interface
-// interface Tool {
-//   type: string;
-//   name: string;
-//   description: string;
-//   parameters: {
-//     type: string;
-//     properties: Record<string, unknown>;
-//     required: string[];
-//   };
-// }
+// Server
+import { prisma } from "./db.server";
 
 // Define available tools
 const tools = [
@@ -60,7 +51,6 @@ const tools = [
 // Tool implementations
 const toolImplementations = {
   search_web: async ({ query }: { query: string }) => {
-    console.log("query>>>", query);
     try {
       const apiKey = process.env.SERPAPI_KEY!;
       const url = `https://serpapi.com/search.json?q=${encodeURIComponent(
@@ -77,7 +67,7 @@ const toolImplementations = {
       }
     } catch (error) {
       // TODO: Pino logger
-      console.log("error>>>>>>", error);
+      console.log("Error: ", error);
     }
   },
   get_time_in_timezone: async (params: { timezone: string }) => {
@@ -167,8 +157,8 @@ export async function createChatCompletion(
     4. Use "search_web" as the **default fallback** tool for any question where your answer is incomplete, uncertain, or possibly outdated.
     
     💡EXAMPLES:
-    - “What is the capital of Japan?” → direct answer ✅
-    - “What are the 2024 color options for the Jeep Wrangler?” → use "search_web" ❗
+    - "What is the capital of Japan?" → direct answer ✅
+    - "What are the 2024 color options for the Jeep Wrangler?" → use "search_web" ❗
     
     After using a tool, I will return the result so you can respond to the user.
     
@@ -184,16 +174,23 @@ export async function createChatCompletion(
   // Check if the response is a tool call
   try {
     if (response.tool_calls && response.tool_calls.length > 0) {
-      const toolCall = response.tool_calls[0]; // You are correctly accessing the first tool call
+      const toolCall = response.tool_calls[0];
 
       const toolName = toolCall.name;
       const args = toolCall.args;
 
       console.log("Tool call detected:", toolName, args);
 
-      const toolResult = await toolImplementations[
-        toolName as keyof typeof toolImplementations
-      ](args);
+      const toolResult = await(() => {
+        if (toolName === "search_web") {
+          return toolImplementations.search_web(args as { query: string });
+        } else if (toolName === "get_time_in_timezone") {
+          return toolImplementations.get_time_in_timezone(
+            args as { timezone: string }
+          );
+        }
+        throw new Error(`Unknown tool: ${toolName}`);
+      })();
 
       const finalResponse = await model.invoke([
         systemMessage,
