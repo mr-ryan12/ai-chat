@@ -1,89 +1,108 @@
+// Packages
 import { ChatOpenAI } from "@langchain/openai";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { PrismaClient } from "@prisma/client";
+import { HumanMessage, AIMessage } from "@langchain/core/messages";
 
-const prisma = new PrismaClient();
+// Utils
+import { systemMessage } from "~/server/utils/systemMessage";
+import { toolImplementations, tools } from "../server/utils/tools";
 
-interface DatabaseMessage {
-  content: string;
-  role: string;
-}
+// Server
+import { prisma } from "../server/db.server";
+import { getConversation } from "~/server/utils/apiCalls/getConversation";
+
+// Types
+import { IDatabaseMessage } from "~/types/chat.types";
 
 export async function createChatCompletion(
   message: string,
   conversationId?: string
 ) {
-  try {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not set");
-    }
+  const model = new ChatOpenAI({
+    modelName: "gpt-4o",
+    temperature: 0,
+  });
 
-    const model = new ChatOpenAI({
-      modelName: "gpt-4",
-      temperature: 0.7,
-      openAIApiKey: process.env.OPENAI_API_KEY,
-    });
+  const conversation = await getConversation(conversationId);
 
-    let conversation;
-    if (conversationId) {
-      conversation = await prisma.conversation.findUnique({
-        where: { id: conversationId },
-        include: { messages: true },
-      });
+  if (!conversation) {
+    throw new Error("Failed to create or find conversation");
+  }
+
+  const messages = conversation.messages.map((msg: IDatabaseMessage) => {
+    if (msg.role === "user") {
+      return new HumanMessage(msg.content);
     } else {
-      conversation = await prisma.conversation.create({
-        data: {},
-        include: { messages: true },
-      });
+      return new AIMessage(msg.content);
     }
+  });
 
-    if (!conversation) {
-      throw new Error("Failed to create or find conversation");
+  // Add the new user message
+  messages.push(new HumanMessage(message));
+
+  // Get initial response from the model
+  const response = await model.invoke([systemMessage, ...messages], {
+    tools: tools,
+    tool_choice: "auto",
+  });
+
+  let fullResponse = "";
+
+  // Check if the response is a tool call
+  try {
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      const toolCall = response.tool_calls[0];
+
+      const toolName = toolCall.name;
+      const args = toolCall.args;
+
+      const toolResult = await(() => {
+        if (toolName === "search_web") {
+          return toolImplementations.search_web(args as { query: string });
+        } else if (toolName === "get_time_in_timezone") {
+          return toolImplementations.get_time_in_timezone(
+            args as { timezone: string }
+          );
+        }
+        throw new Error(`Unknown tool: ${toolName}`);
+      })();
+
+      const finalResponse = await model.invoke([
+        systemMessage,
+        ...messages,
+        new AIMessage(`Tool ${toolName} was called with result: ${toolResult}`),
+      ]);
+
+      fullResponse = finalResponse.content.toString();
+    } else if (response.content) {
+      // Natural language response
+      fullResponse = response.content.toString();
     }
+  } catch (e) {
+    // TODO: Pino logger
+    console.log("Error: ", e);
+  }
 
-    const messages = [
-      new SystemMessage(
-        "You are a helpful AI assistant. Provide clear, concise, and accurate responses."
-      ),
-      ...(conversation.messages?.map((msg: DatabaseMessage) =>
-        msg.role === "user"
-          ? new HumanMessage(msg.content)
-          : new SystemMessage(msg.content)
-      ) || []),
-      new HumanMessage(message),
-    ];
-
-    // Save user message
-    await prisma.message.create({
-      data: {
+  // Save the messages
+  await prisma.message.createMany({
+    data: [
+      {
         content: message,
         role: "user",
         conversationId: conversation.id,
       },
-    });
-
-    const response = await model.invoke(messages);
-    const fullResponse = response.content.toString();
-
-    // Save assistant message
-    await prisma.message.create({
-      data: {
+      {
         content: fullResponse,
         role: "assistant",
         conversationId: conversation.id,
       },
-    });
+    ],
+  });
 
-    // Split response into words
-    const words = fullResponse.split(/\s+/);
+  const words = fullResponse.split(/\s+/);
 
-    return {
-      response: fullResponse,
-      words,
-      conversationId: conversation.id,
-    };
-  } catch (error) {
-    console.error("Detailed error in createChatCompletion:", error);
-    throw error;
-  }
+  return {
+    response: fullResponse,
+    words,
+    conversationId: conversation.id,
+  };
 }
