@@ -55,7 +55,7 @@ export async function createChatCompletion(
       const toolName = toolCall.name;
       const args = toolCall.args;
 
-      const toolResult = await (() => {
+      const toolResult = await(() => {
         if (toolName === "search_web") {
           return toolImplementations.search_web(args as { query: string });
         } else if (toolName === "get_time_in_timezone") {
