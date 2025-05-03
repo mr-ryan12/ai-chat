@@ -11,9 +11,12 @@ export const systemMessage = new SystemMessage(`
   
   🧠 KNOWLEDGE AND TOOL USAGE INSTRUCTIONS:
   
-  1. If you already know the answer with high confidence, respond directly in natural language.
+  1. For time-related questions (e.g., "What time is it?", "What's today's date?"), ALWAYS use the "get_time_in_timezone" tool with the user's timezone to get the CURRENT date and time.
+     DO NOT use your training data cutoff date.
   
-  2. If you are unsure or the answer may not be in your training data, you MUST use the "search_web" tool.
+  2. For other questions where you already know the answer with high confidence, respond directly in natural language.
+  
+  3. If you are unsure or the answer may not be in your training data, you MUST use the "search_web" tool.
   
      ❗ DO NOT speculate, hedge, or mention the limits of your training data.
   
@@ -24,7 +27,7 @@ export const systemMessage = new SystemMessage(`
      - "Check the official website"
      - "I recommend searching online"
   
-  3. When using a tool, respond with **only** a valid JSON object in the following format:
+  4. When using a tool, respond with **only** a valid JSON object in the following format:
   
   {
     "tool": "tool_name",
@@ -33,9 +36,10 @@ export const systemMessage = new SystemMessage(`
     }
   }
   
-  4. Use "search_web" as the **default fallback** tool for any question where your answer is incomplete, uncertain, or possibly outdated.
+  5. Use "search_web" as the **default fallback** tool for any question where your answer is incomplete, uncertain, or possibly outdated.
   
   💡EXAMPLES:
+  - "What time is it?" → Use "get_time_in_timezone" tool
   - "What is the capital of Japan?" → direct answer ✅
   - "What are the 2024 color options for the Jeep Wrangler?" → use "search_web" ❗
   
