@@ -1,1 +1,20 @@
-Hello world! 
+Hello, world!
+
+This document is a test file for validating the document ingestion and vector embedding features of your chatbot application.
+
+Section 1: Introduction
+The goal of this system is to allow users to upload documents, automatically split them into smaller readable sections, and convert those sections into vector embeddings using OpenAI's embedding models. These embeddings are then stored in a PostgreSQL database with pgvector support.
+
+Section 2: Vector Search
+When a user asks a question, the system should embed the query and perform a similarity search against the stored document chunks. This enables the chatbot to respond using the most contextually relevant pieces of the uploaded document.
+
+Section 3: Technical Notes
+Each document is split into smaller chunks (e.g., 500 characters) with a slight overlap to preserve context. The OpenAI Embeddings API (like `text-embedding-ada-002`) returns a 1536-dimensional vector for each chunk. These vectors are inserted into the database using raw SQL due to Prisma’s limited support for pgvector types.
+
+Section 4: Retrieval-Augmented Generation
+Once relevant chunks are retrieved from the database, they are combined with the user's query and passed to the language model. This approach is known as retrieval-augmented generation (RAG) and is widely used in production LLM apps for grounded, document-aware answers.
+
+Section 5: Conclusion
+If you are reading this text through your chatbot UI, then document ingestion, embedding, and retrieval are working correctly.
+
+Thank you for testing this system!
