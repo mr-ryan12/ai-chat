@@ -25,7 +25,7 @@ model Conversation {
 model Message {
   id             String       @id @default(cuid())
   content        String
-  role           String // "user" or "assistant"
+  role           Role // "user" or "assistant"
   createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   conversationId String
@@ -36,4 +36,9 @@ model DocumentChunk {
   content   String
   embedding Unsupported("vector(1536)")
   createdAt DateTime                    @default(now())
+}
+
+enum Role {
+  user
+  assistant
 }
