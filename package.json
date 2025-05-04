@@ -8,7 +8,10 @@
     "dev": "remix vite:dev",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "remix-serve ./build/server/index.js",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "db:push": "prisma db push",
+    "migrate:new": "prisma migrate dev",
+    "migrate:latest": "prisma migrate latest"
   },
   "dependencies": {
     "@langchain/core": "^0.3.42",
