@@ -1,6 +1,6 @@
 // Packages
 import { prisma } from "~/server/db.server";
-import { OpenAIEmbeddings } from "langchain/embeddings/openai";
+import { OpenAIEmbeddings } from "@langchain/openai";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { v4 as uuid } from "uuid";
 import fs from "fs/promises";

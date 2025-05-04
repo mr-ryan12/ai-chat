@@ -9,7 +9,7 @@ import {
 // Utils
 import { systemMessage } from "~/server/utils/systemMessage";
 import { toolImplementations, tools } from "../server/utils/tools";
-import { queryDocuments } from "../../src/services/documentService";
+import { queryDocuments } from "../server/utils/documentService";
 
 // Server
 import { prisma } from "../server/db.server";

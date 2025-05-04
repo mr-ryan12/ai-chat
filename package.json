@@ -13,7 +13,7 @@
     "migrate:new": "prisma migrate dev",
     "migrate:latest": "prisma migrate latest",
     "prisma:generate": "prisma generate",
-    "run:ingest": "tsx ./src/scripts/ingest.ts"
+    "run:ingest": "tsx ./app/server/scripts/ingest.ts"
   },
   "dependencies": {
     "@langchain/core": "^0.3.42",
@@ -30,6 +30,7 @@
     "prisma": "^5.10.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "remix": "^2.16.5",
     "tsx": "^4.19.4",
     "uuid": "^11.1.0"
   },

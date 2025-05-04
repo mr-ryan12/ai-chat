@@ -6143,6 +6143,11 @@ remark-rehype@^10.0.0:
     mdast-util-to-hast "^12.1.0"
     unified "^10.0.0"
 
+remix@^2.16.5:
+  version "2.16.5"
+  resolved "https://registry.yarnpkg.com/remix/-/remix-2.16.5.tgz#2be09438285185c86e6518ad49aeec9430ef6c47"
+  integrity sha512-hiJziB5gcISLvB6EY79sUlVdzAnrblcoLifDlBHXdf8xCAwGzAfqsPwCrNQRtQNFPFzqOLy6eLiFwYfmMzVAAg==
+
 "require-like@>= 0.1.1":
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/require-like/-/require-like-0.1.2.tgz#ad6f30c13becd797010c468afa775c0c0a6b47fa"
