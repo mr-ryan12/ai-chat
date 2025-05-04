@@ -8,20 +8,31 @@
     "dev": "remix vite:dev",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "remix-serve ./build/server/index.js",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "db:push": "prisma db push",
+    "migrate:new": "prisma migrate dev",
+    "migrate:latest": "prisma migrate latest",
+    "prisma:generate": "prisma generate",
+    "run:ingest": "tsx ./app/server/scripts/ingest.ts"
   },
   "dependencies": {
     "@langchain/core": "^0.3.42",
     "@langchain/openai": "^0.4.4",
-    "@prisma/client": "^6.4.1",
+    "@prisma/client": "^5.10.0",
     "@remix-run/node": "^2.16.0",
     "@remix-run/react": "^2.16.0",
     "@remix-run/serve": "^2.16.0",
     "isbot": "^4.1.0",
-    "langchain": "^0.3.19",
-    "openai": "^4.86.1",
+    "langchain": "^0.1.21",
+    "openai": "^4.28.0",
+    "pg": "^8.15.6",
+    "pgvector": "^0.2.0",
+    "prisma": "^5.10.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "remix": "^2.16.5",
+    "tsx": "^4.19.4",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@remix-run/dev": "^2.16.0",

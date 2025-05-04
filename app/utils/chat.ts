@@ -1,10 +1,15 @@
 // Packages
 import { ChatOpenAI } from "@langchain/openai";
-import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import {
+  HumanMessage,
+  AIMessage,
+  SystemMessage,
+} from "@langchain/core/messages";
 
 // Utils
 import { systemMessage } from "~/server/utils/systemMessage";
 import { toolImplementations, tools } from "../server/utils/tools";
+import { queryDocuments } from "../server/utils/documentService";
 
 // Server
 import { prisma } from "../server/db.server";
@@ -18,9 +23,19 @@ export async function createChatCompletion(
   conversationId?: string
 ) {
   const model = new ChatOpenAI({
-    modelName: "gpt-4o",
+    modelName: "gpt-4",
     temperature: 0,
   });
+
+  // Get relevant document content if the query seems to be about documents
+  let documentContext = "";
+  if (
+    message.toLowerCase().includes("document") ||
+    message.toLowerCase().includes("text") ||
+    message.toLowerCase().includes("content")
+  ) {
+    documentContext = await queryDocuments(message);
+  }
 
   const conversation = await getConversation(conversationId);
 
@@ -38,6 +53,13 @@ export async function createChatCompletion(
 
   // Add the new user message
   messages.push(new HumanMessage(message));
+
+  // Add document context if available
+  if (documentContext) {
+    messages.push(
+      new SystemMessage(`Relevant document content: ${documentContext}`)
+    );
+  }
 
   // Get initial response from the model
   const response = await model.invoke([systemMessage, ...messages], {
