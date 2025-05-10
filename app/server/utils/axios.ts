@@ -1,16 +1,20 @@
 import axios, {
+  AxiosInstance,
   AxiosResponse,
   AxiosError,
   InternalAxiosRequestConfig,
 } from "axios";
 import { logger } from "./logger";
 
-const axiosInstance = axios.create();
-const METADATA_KEY = Symbol("axios_metadata");
+interface AxiosRequestConfigWithMeta extends InternalAxiosRequestConfig {
+  _meta?: { start: number };
+}
+
+const axiosInstance: AxiosInstance = axios.create();
 
 axiosInstance.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    (config as Record<string, unknown>)[METADATA_KEY] = { start: Date.now() };
+  (config: AxiosRequestConfigWithMeta) => {
+    config._meta = { start: Date.now() };
     return config;
   },
   (error: AxiosError) => {
@@ -21,9 +25,9 @@ axiosInstance.interceptors.request.use(
 
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => {
-    const { method, url } = response.config;
-    const meta = (response.config as Record<string, any>)[METADATA_KEY];
-    const duration = Date.now() - (meta?.start || Date.now());
+    const config = response.config as AxiosRequestConfigWithMeta;
+    const { method, url } = config;
+    const duration = Date.now() - (config._meta?.start || Date.now());
     logger.logRequest({
       method: method?.toUpperCase() || "GET",
       path: url || "",
@@ -34,9 +38,9 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error: AxiosError) => {
-    const { method, url } = error.config || {};
-    const meta = (error.config as Record<string, any>)?.[METADATA_KEY];
-    const duration = Date.now() - (meta?.start || Date.now());
+    const config = (error.config || {}) as AxiosRequestConfigWithMeta;
+    const { method, url } = config;
+    const duration = Date.now() - (config._meta?.start || Date.now());
     logger.logError(error, {
       method: method?.toUpperCase() || "GET",
       path: url || "",
