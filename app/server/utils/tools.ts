@@ -1,3 +1,5 @@
+import { logger } from "./logger";
+
 export const tools = [
   {
     type: "function",
@@ -44,7 +46,7 @@ export const toolImplementations = {
         query
       )}&api_key=${apiKey}`;
 
-      const res = await fetch(url);
+      const res = await loggedFetch(url, {}, "SERPAPI");
       const data = await res.json();
 
       if (data.organic_results?.length) {
@@ -53,8 +55,7 @@ export const toolImplementations = {
         return "No relevant search results found.";
       }
     } catch (error) {
-      // TODO: Pino logger
-      console.log("Error: ", error);
+      logger.logError(error, { service: "SERPAPI" });
     }
   },
   get_time_in_timezone: async (params: { timezone: string }) => {
@@ -65,3 +66,35 @@ export const toolImplementations = {
     }
   },
 };
+
+async function loggedFetch(
+  url: string,
+  options: RequestInit = {},
+  service: string = "EXTERNAL"
+) {
+  const start = Date.now();
+  let status: number | undefined = undefined;
+  try {
+    const res = await fetch(url, options);
+    status = res.status;
+    const duration = Date.now() - start;
+    logger.logRequest({
+      method: options.method || "GET",
+      path: url,
+      duration,
+      status,
+      service,
+    });
+    return res;
+  } catch (error) {
+    const duration = Date.now() - start;
+    logger.logError(error, {
+      method: options.method || "GET",
+      path: url,
+      duration,
+      status,
+      service,
+    });
+    throw error;
+  }
+}

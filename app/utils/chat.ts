@@ -18,6 +18,8 @@ import { getConversation } from "~/server/utils/apiCalls/getConversation";
 // Types
 import { IDatabaseMessage } from "~/types/chat.types";
 
+import { logger } from "~/server/utils/logger";
+
 export async function createChatCompletion(
   message: string,
   conversationId?: string
@@ -100,8 +102,7 @@ export async function createChatCompletion(
       fullResponse = response.content.toString();
     }
   } catch (e) {
-    // TODO: Pino logger
-    console.log("Error: ", e);
+    logger.logError({ err: e, message, conversationId });
   }
 
   // Save the messages
