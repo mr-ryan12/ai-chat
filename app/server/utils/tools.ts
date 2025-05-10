@@ -1,4 +1,5 @@
 import { logger } from "./logger";
+import { axiosInstance } from "./axios";
 
 export const tools = [
   {
@@ -46,8 +47,8 @@ export const toolImplementations = {
         query
       )}&api_key=${apiKey}`;
 
-      const res = await loggedFetch(url, {}, "SERPAPI");
-      const data = await res.json();
+      const res = await axiosInstance.get(url);
+      const data = res.data;
 
       if (data.organic_results?.length) {
         return data.organic_results[0].snippet || "No summary available.";
@@ -66,35 +67,3 @@ export const toolImplementations = {
     }
   },
 };
-
-async function loggedFetch(
-  url: string,
-  options: RequestInit = {},
-  service: string = "EXTERNAL"
-) {
-  const start = Date.now();
-  let status: number | undefined = undefined;
-  try {
-    const res = await fetch(url, options);
-    status = res.status;
-    const duration = Date.now() - start;
-    logger.logRequest({
-      method: options.method || "GET",
-      path: url,
-      duration,
-      status,
-      service,
-    });
-    return res;
-  } catch (error) {
-    const duration = Date.now() - start;
-    logger.logError(error, {
-      method: options.method || "GET",
-      path: url,
-      duration,
-      status,
-      service,
-    });
-    throw error;
-  }
-}
