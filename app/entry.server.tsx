@@ -56,7 +56,6 @@ export default async function handleRequest(
       path: request.url,
       duration,
       status: responseStatusCode,
-      service: "INTERNAL",
     });
     return result;
   } catch (error) {
@@ -66,7 +65,6 @@ export default async function handleRequest(
       path: request.url,
       duration,
       status: hasStatus(error) ? error.status : 500,
-      service: "INTERNAL",
     });
     throw error;
   }

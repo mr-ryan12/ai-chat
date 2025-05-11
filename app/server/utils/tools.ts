@@ -56,7 +56,7 @@ export const toolImplementations = {
         return "No relevant search results found.";
       }
     } catch (error) {
-      logger.logError(error, { service: "SERPAPI" });
+      logger.logError(error);
     }
   },
   get_time_in_timezone: async (params: { timezone: string }) => {

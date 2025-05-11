@@ -31,7 +31,7 @@ axiosInstance.interceptors.request.use(
     return config;
   },
   (error: AxiosError) => {
-    logger.logError(error, { service: "EXTERNAL" });
+    logger.logError(error);
     return Promise.reject(error);
   }
 );
@@ -46,7 +46,6 @@ axiosInstance.interceptors.response.use(
       path: redactApiKeyFromUrl(url || ""),
       duration,
       status: response.status,
-      service: "EXTERNAL",
     });
     return response;
   },
@@ -59,7 +58,6 @@ axiosInstance.interceptors.response.use(
       path: redactApiKeyFromUrl(url || ""),
       duration,
       status: error.response?.status,
-      service: "EXTERNAL",
     });
     return Promise.reject(error);
   }

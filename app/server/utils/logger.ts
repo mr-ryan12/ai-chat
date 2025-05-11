@@ -2,6 +2,12 @@ import pino from "pino";
 
 export type ServiceName = "INTERNAL" | "OPENAI" | "SERPAPI" | string;
 
+const getService = (url: string) => {
+  if (url.includes("localhost")) return "LOCALHOST";
+  if (url.includes("serpapi")) return "SERPAPI";
+  return "UNKNOWN";
+};
+
 const pinoLogger = pino({
   transport: {
     target: "pino-pretty",
@@ -22,7 +28,6 @@ class Logger {
     path,
     duration,
     status,
-    service = "INTERNAL",
   }: {
     method: string;
     path: string;
@@ -36,7 +41,7 @@ class Logger {
         type: method,
         duration,
         path,
-        service,
+        service: getService(path),
         status,
       },
       "HTTP request successful"
@@ -47,10 +52,9 @@ class Logger {
     error: unknown,
     {
       method,
-      path,
+      path = "Unknown",
       duration,
       status,
-      service = "INTERNAL",
     }: {
       method?: string;
       path?: string;
@@ -65,7 +69,7 @@ class Logger {
         type: method,
         duration,
         path,
-        service,
+        service: getService(path),
         status,
         err:
           error instanceof Error
