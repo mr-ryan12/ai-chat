@@ -3,7 +3,9 @@ import pino from "pino";
 
 // Utils
 import { getPath, getService } from "./loggerHelpers";
-import { TServiceName } from "~/types/logger.types";
+
+// Types
+import { ILogRequest, ILogResponse } from "~/types/logger.types";
 
 const pinoLogger = pino({
   transport: {
@@ -20,18 +22,7 @@ const pinoLogger = pino({
 });
 
 class Logger {
-  logRequest({
-    method,
-    path,
-    duration,
-    status,
-  }: {
-    method: string;
-    path: string;
-    duration: number;
-    status: number;
-    service?: TServiceName;
-  }) {
+  logRequest({ method, path, duration, status }: ILogRequest) {
     pinoLogger.info(
       {
         level: "INFO",
@@ -47,18 +38,7 @@ class Logger {
 
   logError(
     error: unknown,
-    {
-      method,
-      path = "Unknown",
-      duration,
-      status,
-    }: {
-      method?: string;
-      path?: string;
-      duration?: number;
-      status?: number;
-      service?: TServiceName;
-    } = {}
+    { method, path = "Unknown", duration, status }: ILogResponse = {}
   ) {
     pinoLogger.error(
       {
