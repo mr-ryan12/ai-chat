@@ -1,3 +1,9 @@
+// Packages
+import { axiosInstance } from "./axios";
+
+// Types
+import { logger } from "./logger";
+
 export const tools = [
   {
     type: "function",
@@ -44,8 +50,8 @@ export const toolImplementations = {
         query
       )}&api_key=${apiKey}`;
 
-      const res = await fetch(url);
-      const data = await res.json();
+      const res = await axiosInstance.get(url);
+      const data = res.data;
 
       if (data.organic_results?.length) {
         return data.organic_results[0].snippet || "No summary available.";
@@ -53,8 +59,7 @@ export const toolImplementations = {
         return "No relevant search results found.";
       }
     } catch (error) {
-      // TODO: Pino logger
-      console.log("Error: ", error);
+      logger.logError(error);
     }
   },
   get_time_in_timezone: async (params: { timezone: string }) => {

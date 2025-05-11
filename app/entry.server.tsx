@@ -6,15 +6,22 @@
 
 import { PassThrough } from "node:stream";
 
-import type { AppLoadContext, EntryContext } from "@remix-run/node";
+// Packages
 import { createReadableStreamFromReadable } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 
+// Utils
+import { logger } from "./server/utils/logger";
+import { hasStatus } from "./server/utils/loggerHelpers";
+
+// Types
+import type { AppLoadContext, EntryContext } from "@remix-run/node";
+
 const ABORT_DELAY = 5_000;
 
-export default function handleRequest(
+export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
@@ -24,19 +31,40 @@ export default function handleRequest(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   loadContext: AppLoadContext
 ) {
-  return isbot(request.headers.get("user-agent") || "")
-    ? handleBotRequest(
-        request,
-        responseStatusCode,
-        responseHeaders,
-        remixContext
-      )
-    : handleBrowserRequest(
-        request,
-        responseStatusCode,
-        responseHeaders,
-        remixContext
-      );
+  const start = Date.now();
+  try {
+    const isBot = isbot(request.headers.get("user-agent") || "");
+    const result = isBot
+      ? await handleBotRequest(
+          request,
+          responseStatusCode,
+          responseHeaders,
+          remixContext
+        )
+      : await handleBrowserRequest(
+          request,
+          responseStatusCode,
+          responseHeaders,
+          remixContext
+        );
+    const duration = Date.now() - start;
+    logger.logRequest({
+      method: request.method,
+      path: request.url,
+      duration,
+      status: responseStatusCode,
+    });
+    return result;
+  } catch (error) {
+    const duration = Date.now() - start;
+    logger.logError(error, {
+      method: request.method,
+      path: request.url,
+      duration,
+      status: hasStatus(error) ? error.status : 500,
+    });
+    throw error;
+  }
 }
 
 function handleBotRequest(
