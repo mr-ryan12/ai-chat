@@ -14,20 +14,12 @@ import { renderToPipeableStream } from "react-dom/server";
 
 // Utils
 import { logger } from "./server/utils/logger";
+import { hasStatus } from "./server/utils/loggerHelpers";
 
 // Types
 import type { AppLoadContext, EntryContext } from "@remix-run/node";
 
 const ABORT_DELAY = 5_000;
-
-function hasStatus(err: unknown): err is { status: number } {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "status" in err &&
-    typeof (err as { status: unknown }).status === "number"
-  );
-}
 
 export default async function handleRequest(
   request: Request,
