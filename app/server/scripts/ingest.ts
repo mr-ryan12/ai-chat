@@ -1,4 +1,4 @@
-import { ingestDocument } from "../services/documentService";
+import { ingestDocument } from "~/server/utils/documentService";
 
 async function main() {
   try {

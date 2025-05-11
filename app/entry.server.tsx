@@ -18,7 +18,6 @@ import { logger } from "./server/utils/logger";
 // Types
 import type { AppLoadContext, EntryContext } from "@remix-run/node";
 
-
 const ABORT_DELAY = 5_000;
 
 function hasStatus(err: unknown): err is { status: number } {

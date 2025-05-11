@@ -1,12 +1,9 @@
+// Packages
 import pino from "pino";
 
-export type ServiceName = "INTERNAL" | "OPENAI" | "SERPAPI" | string;
-
-const getService = (url: string) => {
-  if (url.includes("localhost")) return "LOCALHOST";
-  if (url.includes("serpapi")) return "SERPAPI";
-  return "UNKNOWN";
-};
+// Utils
+import { getPath, getService } from "./loggerHelpers";
+import { TServiceName } from "~/types/logger.types";
 
 const pinoLogger = pino({
   transport: {
@@ -33,14 +30,14 @@ class Logger {
     path: string;
     duration: number;
     status: number;
-    service?: ServiceName;
+    service?: TServiceName;
   }) {
     pinoLogger.info(
       {
         level: "INFO",
-        type: method,
+        method,
         duration,
-        path,
+        path: getPath(path),
         service: getService(path),
         status,
       },
@@ -60,15 +57,15 @@ class Logger {
       path?: string;
       duration?: number;
       status?: number;
-      service?: ServiceName;
+      service?: TServiceName;
     } = {}
   ) {
     pinoLogger.error(
       {
         level: "ERROR",
-        type: method,
+        method,
         duration,
-        path,
+        path: getPath(path),
         service: getService(path),
         status,
         err:

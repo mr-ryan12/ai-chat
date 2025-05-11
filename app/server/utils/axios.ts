@@ -1,26 +1,16 @@
+// Packages
 import axios, {
   AxiosInstance,
   AxiosResponse,
   AxiosError,
   InternalAxiosRequestConfig,
 } from "axios";
+
+// Utils
 import { logger } from "./logger";
 
 interface AxiosRequestConfigWithMeta extends InternalAxiosRequestConfig {
   _meta?: { start: number };
-}
-
-function redactApiKeyFromUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    if (u.searchParams.has("api_key")) {
-      u.searchParams.delete("api_key");
-    }
-    return u.toString();
-  } catch {
-    // If it's not a valid URL, return as is
-    return url;
-  }
 }
 
 const axiosInstance: AxiosInstance = axios.create();
@@ -43,7 +33,7 @@ axiosInstance.interceptors.response.use(
     const duration = Date.now() - (config._meta?.start || Date.now());
     logger.logRequest({
       method: method?.toUpperCase() || "GET",
-      path: redactApiKeyFromUrl(url || ""),
+      path: url || "",
       duration,
       status: response.status,
     });
@@ -55,7 +45,7 @@ axiosInstance.interceptors.response.use(
     const duration = Date.now() - (config._meta?.start || Date.now());
     logger.logError(error, {
       method: method?.toUpperCase() || "GET",
-      path: redactApiKeyFromUrl(url || ""),
+      path: url,
       duration,
       status: error.response?.status,
     });
