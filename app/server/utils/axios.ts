@@ -18,10 +18,20 @@ const axiosInstance: AxiosInstance = axios.create();
 axiosInstance.interceptors.request.use(
   (config: AxiosRequestConfigWithMeta) => {
     config._meta = { start: Date.now() };
+    logger.logRequest({
+      method: config.method || "GET",
+      path: config.url || "",
+      duration: 0,
+    });
     return config;
   },
   (error: AxiosError) => {
-    logger.logError(error);
+    logger.logError(error, {
+      method: error.config?.method?.toUpperCase() || "GET",
+      path: error.config?.url || "",
+      duration: 0,
+      status: error.response?.status,
+    });
     return Promise.reject(error);
   }
 );
@@ -33,7 +43,7 @@ axiosInstance.interceptors.response.use(
     const duration = Date.now() - (config._meta?.start || Date.now());
     logger.logRequest({
       method: method?.toUpperCase() || "GET",
-      path: url || "",
+      path: url || "Unknown",
       duration,
       status: response.status,
     });
@@ -45,7 +55,7 @@ axiosInstance.interceptors.response.use(
     const duration = Date.now() - (config._meta?.start || Date.now());
     logger.logError(error, {
       method: method?.toUpperCase() || "GET",
-      path: url,
+      path: url || "Unknown",
       duration,
       status: error.response?.status,
     });

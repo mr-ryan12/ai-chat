@@ -5,7 +5,7 @@ import pino from "pino";
 import { getPath, getService } from "./loggerHelpers";
 
 // Types
-import { ILogRequest, ILogResponse } from "~/types/logger.types";
+import { ILogRequest } from "~/types/logger.types";
 
 const pinoLogger = pino({
   transport: {
@@ -32,13 +32,18 @@ class Logger {
         service: getService(path),
         status,
       },
-      "HTTP request successful"
+      `HTTP ${status ? "response" : "request"} successful`
     );
   }
 
   logError(
     error: unknown,
-    { method, path = "Unknown", duration, status }: ILogResponse = {}
+    {
+      method = "GET",
+      path = "Unknown",
+      duration = 0,
+      status = 500,
+    }: ILogRequest
   ) {
     pinoLogger.error(
       {
