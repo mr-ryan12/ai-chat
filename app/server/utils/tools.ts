@@ -1,5 +1,8 @@
-import { logger } from "./logger";
+// Packages
 import { axiosInstance } from "./axios";
+
+// Types
+import { logger } from "./logger";
 
 export const tools = [
   {

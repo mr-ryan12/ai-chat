@@ -10,6 +10,7 @@ import {
 import { systemMessage } from "~/server/utils/systemMessage";
 import { toolImplementations, tools } from "../server/utils/tools";
 import { queryDocuments } from "../server/utils/documentService";
+import { logger } from "~/server/utils/logger";
 
 // Server
 import { prisma } from "../server/db.server";
@@ -18,7 +19,6 @@ import { getConversation } from "~/server/utils/apiCalls/getConversation";
 // Types
 import { IDatabaseMessage } from "~/types/chat.types";
 
-import { logger } from "~/server/utils/logger";
 
 export async function createChatCompletion(
   message: string,
