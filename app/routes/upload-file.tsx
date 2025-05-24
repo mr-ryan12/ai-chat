@@ -34,7 +34,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const originalname = file.name;
     const mimetype = file.type;
 
-    let text = await extractTextFromFile({
+    const text = await extractTextFromFile({
       buffer,
       filename: originalname,
       mimetype,

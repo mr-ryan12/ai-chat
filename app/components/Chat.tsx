@@ -88,13 +88,14 @@ export default function Chat() {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
-      if (data.success) {
+
+      if (res.ok) {
         setUploadMessage("File uploaded and ingested successfully!");
       } else {
-        setUploadMessage(data.error || "Upload failed");
+        setUploadMessage("Upload failed");
       }
     } catch (err) {
+      console.error(err);
       setUploadMessage("Upload failed");
     } finally {
       setUploading(false);
