@@ -23,6 +23,9 @@ export default function Chat() {
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (actionData?.message) {
@@ -69,6 +72,36 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingResponse]);
 
+  const handleFileIconClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadMessage(null);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("/upload-file", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUploadMessage("File uploaded and ingested successfully!");
+      } else {
+        setUploadMessage(data.error || "Upload failed");
+      }
+    } catch (err) {
+      setUploadMessage("Upload failed");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen max-w-4xl mx-auto p-4">
       <div className="flex-1 overflow-y-auto mb-4 space-y-4">
@@ -106,7 +139,7 @@ export default function Chat() {
         )}
         <div ref={messagesEndRef} />
       </div>
-      <Form method="post" className="flex gap-2">
+      <Form method="post" className="flex gap-2 items-center relative">
         <input type="hidden" name="conversationId" value={conversationId} />
         <input
           type="text"
@@ -118,6 +151,37 @@ export default function Chat() {
           disabled={isSubmitting}
         />
         <button
+          type="button"
+          className="relative group bg-gray-200 rounded-full p-2 hover:bg-gray-300 focus:outline-none"
+          onClick={handleFileIconClick}
+          aria-label="Upload file"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="w-6 h-6 text-gray-600"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m-2.25 0h12a2.25 2.25 0 012.25 2.25v6A2.25 2.25 0 0118 21H6a2.25 2.25 0 01-2.25-2.25v-6A2.25 2.25 0 016 10.5zm3 3v2.25a.75.75 0 001.5 0V13.5a.75.75 0 00-1.5 0z"
+            />
+          </svg>
+          <span className="absolute left-1/2 -translate-x-1/2 -top-8 bg-black text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
+            Upload file
+          </span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.docx"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <button
           type="submit"
           disabled={isSubmitting || !input.trim()}
           className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -125,6 +189,10 @@ export default function Chat() {
           Send
         </button>
       </Form>
+      {uploading && <div className="text-blue-500 mt-2">Uploading...</div>}
+      {uploadMessage && (
+        <div className="mt-2 text-sm text-gray-700">{uploadMessage}</div>
+      )}
     </div>
   );
 }
