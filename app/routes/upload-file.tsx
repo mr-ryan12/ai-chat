@@ -56,7 +56,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return json({ success: true });
   } catch (error) {
-    console.log("error>>>>>", error);
     logger.logError(error, {
       method: request.method,
       path: "/upload-file",
