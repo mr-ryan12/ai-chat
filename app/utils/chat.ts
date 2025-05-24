@@ -102,7 +102,13 @@ export async function createChatCompletion(
       fullResponse = response.content.toString();
     }
   } catch (e) {
-    logger.logError({ err: e, message, conversationId });
+    const log = {
+      method: "GET",
+      path: "chat-completion",
+      duration: 0,
+      status: 500,
+    };
+    logger.logError(e, log);
   }
 
   // Save the messages
