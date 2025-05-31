@@ -9,6 +9,7 @@ declare module "@remix-run/node" {
 }
 
 export default defineConfig({
+  logLevel: 'error',
   plugins: [
     remix({
       future: {
