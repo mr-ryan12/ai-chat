@@ -1,9 +1,6 @@
 // Packages
 import { SystemMessage } from "@langchain/core/messages";
 
-// Utils
-import { tools } from "./tools";
-
 export const systemMessage = new SystemMessage(`
 You are a helpful AI assistant. You have access to the following tools:
 

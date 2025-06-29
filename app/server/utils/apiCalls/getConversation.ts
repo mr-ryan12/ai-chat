@@ -17,7 +17,7 @@ export async function getConversation(id?: string) {
     });
     return newConversation;
   } catch (error) {
-    logger.logError({ err: error });
+    logger.logError(error, { duration: 0, path: "/", method: "GET" });
     return undefined;
   }
 }
