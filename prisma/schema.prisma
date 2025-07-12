@@ -17,6 +17,7 @@ datasource db {
 
 model Conversation {
   id        String    @id @default(cuid())
+  title     String? // Optional title for the conversation
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   messages  Message[]
@@ -31,11 +32,34 @@ model Message {
   conversationId String
 }
 
-model DocumentChunk {
+model Document {
   id        String                      @id @default(cuid())
-  content   String
+  title     String?
   embedding Unsupported("vector(1536)")
-  createdAt DateTime                    @default(now())
+  metadata  Json?
+  chunks    DocumentChunk[]
+}
+
+model DocumentChunk {
+  id         String                      @id @default(cuid())
+  documentId String
+  document   Document                    @relation(fields: [documentId], references: [id])
+  content    String
+  embedding  Unsupported("vector(1536)")
+  section    String?
+  page       Int?
+  orderInDoc Int?
+  metadata   Json?
+  fts        Unsupported("tsvector")?
+  createdAt  DateTime                    @default(now())
+  // GIN index for metadata and FTS must be created manually in migration SQL
+  // CREATE INDEX chunk_metadata_idx ON "DocumentChunk" USING GIN (metadata);
+  // CREATE INDEX chunk_fts_idx ON "DocumentChunk" USING GIN (fts);
+
+  @@index([documentId])
+  @@index([section])
+  @@index([page])
+  @@index([orderInDoc])
 }
 
 enum Role {

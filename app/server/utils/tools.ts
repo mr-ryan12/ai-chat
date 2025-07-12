@@ -59,7 +59,14 @@ export const toolImplementations = {
         return "No relevant search results found.";
       }
     } catch (error) {
-      logger.logError(error);
+      logger.logError(error, {
+        method: "TOOL: search-web",
+        path: "tool calling",
+        duration: 0,
+        status: 0,
+        service: "INTERNAL",
+      });
+      return "Unable to search the web at this time.";
     }
   },
   get_time_in_timezone: async (params: { timezone: string }) => {

@@ -1,28 +1,63 @@
-// Components
-import Chat from "~/components/Chat";
-import ThemeToggle from "~/components/ThemeToggle";
-import ConversationSidebar from "~/components/ConversationSidebar";
-
-// Utils
-import { createChatCompletion } from "~/utils/chat";
-import { getConversations } from "~/server/utils/apiCalls/getConversations";
-
-// Types
 import {
+  json,
+  type LoaderFunctionArgs,
   type ActionFunctionArgs,
+  redirect,
 } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
+import { getConversation } from "~/server/utils/apiCalls/getConversation";
+import { getConversations } from "~/server/utils/apiCalls/getConversations";
+import { logger } from "~/server/utils/logger";
+import Chat from "~/components/Chat";
+import ConversationSidebar from "~/components/ConversationSidebar";
+import ThemeToggle from "~/components/ThemeToggle";
 import { useState, useEffect } from "react";
-import { json } from "@remix-run/node";
+import { createChatCompletion } from "~/utils/chat";
+import type { Conversation } from "~/types/conversation.types";
 
-export async function loader() {
+// Type guard function to ensure conversations array is properly typed
+function isValidConversationsArray(conversations: unknown): conversations is Conversation[] {
+  return Array.isArray(conversations) && 
+    conversations.every((conv): conv is Conversation => 
+      conv !== null && 
+      typeof conv === 'object' && 
+      'id' in conv && 
+      'title' in conv
+    );
+}
+
+export async function loader({ params }: LoaderFunctionArgs) {
+  const conversationId = params.id;
+
   try {
-    // Call the function directly instead of making a fetch request
+    // Call functions directly instead of making fetch requests
+    const conversation = conversationId
+      ? await getConversation(conversationId)
+      : null;
+    
+    // If conversation doesn't exist, redirect to home page
+    if (conversationId && !conversation) {
+      return redirect("/");
+    }
+    
     const conversations = await getConversations();
-    return { conversations };
+
+    return json({
+      conversation,
+      conversations,
+      conversationId,
+    });
   } catch (error) {
-    console.error("Error loading conversations:", error);
-    return { conversations: [] };
+    logger.logError(error, {
+      duration: 0,
+      path: `/conversation/${conversationId}`,
+      method: "GET",
+    });
+    return json({
+      conversation: null,
+      conversations: [],
+      conversationId: null,
+    });
   }
 }
 
@@ -42,6 +77,18 @@ export async function action({ request }: ActionFunctionArgs) {
       conversationId: newConversationId,
     } = await createChatCompletion(message, conversationId);
 
+    // If the conversation ID changed (meaning a new conversation was created),
+    // redirect to the new conversation URL
+    if (conversationId && conversationId !== newConversationId) {
+      return json({
+        message,
+        response,
+        words,
+        conversationId: newConversationId,
+        redirect: `/conversation/${newConversationId}`,
+      });
+    }
+
     return json({
       message,
       response,
@@ -58,20 +105,30 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 }
 
-export default function Index() {
-  const { conversations } = useLoaderData<typeof loader>();
+export default function ConversationPage() {
+  const { conversations, conversationId } =
+    useLoaderData<typeof loader>();
   const navigate = useNavigate();
-  const [sidebarConversations, setSidebarConversations] =
-    useState(conversations);
+
+  // Ensure conversations is properly typed and handle potential null values
+  const safeConversations: Conversation[] | null = isValidConversationsArray(conversations)
+    ? conversations
+    : null;
+
+  const [sidebarConversations, setSidebarConversations] = useState<
+    Conversation[] | null
+  >(safeConversations);
 
   // Update conversations when they change
   useEffect(() => {
-    setSidebarConversations(conversations);
+    const newSafeConversations: Conversation[] | null = isValidConversationsArray(conversations)
+      ? conversations
+      : null;
+    setSidebarConversations(newSafeConversations);
   }, [conversations]);
 
   const handleNewConversation = () => {
-    // Refresh the page to start a new conversation
-    navigate(".", { replace: true });
+    navigate("/");
   };
 
   const handleConversationSelect = (id: string) => {
@@ -125,7 +182,7 @@ export default function Index() {
         {/* Sidebar */}
         <ConversationSidebar
           conversations={sidebarConversations}
-          currentConversationId=""
+          currentConversationId={conversationId || ""}
           onNewConversation={handleNewConversation}
           onConversationSelect={handleConversationSelect}
         />
@@ -134,7 +191,7 @@ export default function Index() {
         <main className="flex-1 flex flex-col">
           <div className="flex-1 p-6">
             <div className="card h-full">
-              <Chat />
+              <Chat conversationId={conversationId || ""} />
             </div>
           </div>
         </main>
