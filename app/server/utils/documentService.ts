@@ -32,7 +32,7 @@ export async function ingestDocument(
   await prisma.$executeRawUnsafe(
     `
     INSERT INTO "Document" (id, title, embedding, metadata)
-    VALUES ($1, $2, $3::vector, $4)
+    VALUES ($1, $2, $3::vector, $4::jsonb)
     `,
     documentId,
     metadata.title || filePath,
@@ -51,8 +51,8 @@ export async function ingestDocument(
     // Store in database
     await prisma.$executeRawUnsafe(
       `
-      INSERT INTO "DocumentChunk" (id, documentId, content, embedding, section, page, orderInDoc, metadata, createdAt)
-      VALUES ($1, $2, $3, $4::vector, $5, $6, $7, $8, $9)
+      INSERT INTO "DocumentChunk" (id, "documentId", content, embedding, section, page, "orderInDoc", metadata, "createdAt")
+      VALUES ($1, $2, $3, $4::vector, $5, $6, $7, $8::jsonb, $9)
       `,
       uuid(),
       documentId,
