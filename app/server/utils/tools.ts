@@ -66,6 +66,7 @@ export const toolImplementations = {
         status: 0,
         service: "INTERNAL",
       });
+      return "Unable to search the web at this time.";
     }
   },
   get_time_in_timezone: async (params: { timezone: string }) => {
