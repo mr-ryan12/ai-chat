@@ -134,7 +134,7 @@ export default function Chat({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingResponse]);
+  }, [messages, streamingResponse, isSubmitting]);
 
   const handleFileIconClick = () => {
     fileInputRef.current?.click();
