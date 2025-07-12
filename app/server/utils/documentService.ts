@@ -78,7 +78,7 @@ export async function queryDocuments(query: string): Promise<string> {
     ORDER BY distance ASC
     LIMIT 3
   `;
-  console.log('chunks>>>>', chunks)
+
   // Format the response
   if (chunks.length === 0) {
     return "I couldn't find any relevant content in the documents.";
