@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { Form, useActionData, useNavigation } from "@remix-run/react";
+import {
+  Form,
+  useActionData,
+  useNavigation,
+  useNavigate,
+} from "@remix-run/react";
 
 interface Message {
   role: "user" | "assistant";
@@ -12,20 +17,79 @@ interface ActionData {
   words?: string[];
   error?: string;
   conversationId?: string;
+  redirect?: string;
 }
 
-export default function Chat() {
+interface ChatProps {
+  conversationId?: string;
+}
+
+interface ApiMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface MessagesApiResponse {
+  messages: ApiMessage[];
+}
+
+export default function Chat({
+  conversationId: initialConversationId,
+}: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [conversationId, setConversationId] = useState<string>("");
+  const [conversationId, setConversationId] = useState<string>(
+    initialConversationId || ""
+  );
   const [streamingResponse, setStreamingResponse] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
+  const navigate = useNavigate();
   const isSubmitting = navigation.state === "submitting";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
+  // Handle redirect if conversation ID changed
+  useEffect(() => {
+    if (actionData?.redirect) {
+      navigate(actionData.redirect);
+    }
+  }, [actionData?.redirect, navigate]);
+
+  // Load existing messages when conversationId changes
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (initialConversationId && initialConversationId !== conversationId) {
+        setConversationId(initialConversationId);
+        setMessages([]);
+        setStreamingResponse("");
+
+        // Only try to load messages if we have a valid conversation ID
+        if (initialConversationId && initialConversationId !== "") {
+          try {
+            const response = await fetch(
+              `/api/conversation/${initialConversationId}/messages`
+            );
+            if (response.ok) {
+              const data: MessagesApiResponse = await response.json();
+              const loadedMessages = data.messages.map((msg: ApiMessage) => ({
+                role: msg.role,
+                content: msg.content,
+              }));
+              setMessages(loadedMessages);
+            }
+          } catch (error) {
+            console.error("Failed to load messages:", error);
+            // Don't throw error, just continue with empty messages
+          }
+        }
+      }
+    };
+
+    loadMessages();
+  }, [initialConversationId, conversationId]);
 
   useEffect(() => {
     if (actionData?.message) {

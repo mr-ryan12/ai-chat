@@ -1,12 +1,30 @@
 // Components
 import Chat from "~/components/Chat";
 import ThemeToggle from "~/components/ThemeToggle";
+import ConversationSidebar from "~/components/ConversationSidebar";
 
 // Utils
 import { createChatCompletion } from "~/utils/chat";
+import { getConversations } from "~/server/utils/apiCalls/getConversations";
 
 // Types
-import { type ActionFunctionArgs } from "@remix-run/node";
+import {
+  type ActionFunctionArgs,
+} from "@remix-run/node";
+import { useLoaderData, useNavigate } from "@remix-run/react";
+import { useState, useEffect } from "react";
+import { json } from "@remix-run/node";
+
+export async function loader() {
+  try {
+    // Call the function directly instead of making a fetch request
+    const conversations = await getConversations();
+    return { conversations };
+  } catch (error) {
+    console.error("Error loading conversations:", error);
+    return { conversations: [] };
+  }
+}
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
@@ -14,7 +32,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const conversationId = formData.get("conversationId") as string | undefined;
 
   if (!message) {
-    return Response.json({ error: "Message is required" }, { status: 400 });
+    return json({ error: "Message is required" }, { status: 400 });
   }
 
   try {
@@ -24,7 +42,7 @@ export async function action({ request }: ActionFunctionArgs) {
       conversationId: newConversationId,
     } = await createChatCompletion(message, conversationId);
 
-    return Response.json({
+    return json({
       message,
       response,
       words,
@@ -36,14 +54,30 @@ export async function action({ request }: ActionFunctionArgs) {
       stack: error instanceof Error ? error.stack : undefined,
       error,
     });
-    return Response.json(
-      { error: "Failed to process message" },
-      { status: 500 }
-    );
+    return json({ error: "Failed to process message" }, { status: 500 });
   }
 }
 
 export default function Index() {
+  const { conversations } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
+  const [sidebarConversations, setSidebarConversations] =
+    useState(conversations);
+
+  // Update conversations when they change
+  useEffect(() => {
+    setSidebarConversations(conversations);
+  }, [conversations]);
+
+  const handleNewConversation = () => {
+    // Refresh the page to start a new conversation
+    navigate(".", { replace: true });
+  };
+
+  const handleConversationSelect = (id: string) => {
+    navigate(`/conversation/${id}`);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
@@ -86,11 +120,25 @@ export default function Index() {
           </div>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="card p-6">
-          <Chat />
-        </div>
-      </main>
+
+      <div className="flex h-[calc(100vh-80px)]">
+        {/* Sidebar */}
+        <ConversationSidebar
+          conversations={sidebarConversations}
+          currentConversationId=""
+          onNewConversation={handleNewConversation}
+          onConversationSelect={handleConversationSelect}
+        />
+
+        {/* Main Chat Area */}
+        <main className="flex-1 flex flex-col">
+          <div className="flex-1 p-6">
+            <div className="card h-full">
+              <Chat />
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
