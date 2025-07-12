@@ -17,6 +17,7 @@ datasource db {
 
 model Conversation {
   id        String    @id @default(cuid())
+  title     String? // Optional title for the conversation
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   messages  Message[]
