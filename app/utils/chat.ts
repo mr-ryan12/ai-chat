@@ -13,7 +13,7 @@ import { queryDocuments } from "../server/utils/documentService";
 
 // Server
 import { prisma } from "../server/db.server";
-import { getConversation } from "~/server/utils/apiCalls/getConversation";
+import { getConversation, createNewConversation } from "~/server/utils/apiCalls/getConversation";
 import { updateConversationTitle } from "~/server/utils/apiCalls/updateConversationTitle";
 
 // Types
@@ -44,10 +44,11 @@ export async function createChatCompletion(
       }
     }
 
-    const conversation = await getConversation(conversationId);
+    let conversation = conversationId ? await getConversation(conversationId) : null;
 
+    // If no conversation exists (either no ID provided or conversation was deleted), create a new one
     if (!conversation) {
-      throw new Error("Failed to create or find conversation");
+      conversation = await createNewConversation();
     }
 
     const messages = conversation.messages.map((msg: IDatabaseMessage) => {

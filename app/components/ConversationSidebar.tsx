@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "@remix-run/react";
+import { Link, useNavigate } from "@remix-run/react";
 import type { Conversation } from "~/types/conversation.types";
 
 interface ConversationSidebarProps {
@@ -20,6 +20,7 @@ export default function ConversationSidebar({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null
   );
+  const navigate = useNavigate();
 
   // Ensure conversations is always an array
   const safeConversations = conversations || [];
@@ -65,8 +66,13 @@ export default function ConversationSidebar({
       );
 
       if (response.ok) {
-        // Refresh the page to update the conversation list
-        window.location.reload();
+        // If we're currently viewing the deleted conversation, redirect to home
+        if (currentConversationId === conversationId) {
+          navigate("/");
+        } else {
+          // Otherwise, just refresh the current page to update the sidebar
+          window.location.reload();
+        }
       } else {
         console.error("Failed to delete conversation");
         alert("Failed to delete conversation. Please try again.");

@@ -2,6 +2,7 @@ import {
   json,
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
+  redirect,
 } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { getConversation } from "~/server/utils/apiCalls/getConversation";
@@ -33,6 +34,12 @@ export async function loader({ params }: LoaderFunctionArgs) {
     const conversation = conversationId
       ? await getConversation(conversationId)
       : null;
+    
+    // If conversation doesn't exist, redirect to home page
+    if (conversationId && !conversation) {
+      return redirect("/");
+    }
+    
     const conversations = await getConversations();
 
     return json({

@@ -10,30 +10,35 @@ export async function getConversation(id?: string) {
         include: { messages: true },
       });
 
-      // If conversation doesn't exist, create a new one
+      // Return null if conversation doesn't exist instead of creating a new one
       if (!conversation) {
-        console.log(
-          `Conversation with id ${id} not found, creating new conversation`
-        );
-        const newConversation = await prisma.conversation.create({
-          data: {},
-          include: { messages: true },
-        });
-        return newConversation;
+        console.log(`Conversation with id ${id} not found`);
+        return null;
       }
 
       return conversation;
     }
 
-    // If no id provided, create a new conversation
+    // If no id provided, return null (don't auto-create)
+    return null;
+  } catch (error) {
+    console.error("Error in getConversation:", error);
+    logger.logError(error, { duration: 0, path: "/", method: "GET" });
+    throw error;
+  }
+}
+
+// Separate function for creating new conversations
+export async function createNewConversation() {
+  try {
     const newConversation = await prisma.conversation.create({
       data: {},
       include: { messages: true },
     });
     return newConversation;
   } catch (error) {
-    console.error("Error in getConversation:", error);
-    logger.logError(error, { duration: 0, path: "/", method: "GET" });
+    console.error("Error creating new conversation:", error);
+    logger.logError(error, { duration: 0, path: "/", method: "POST" });
     throw error;
   }
 }
