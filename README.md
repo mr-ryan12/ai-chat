@@ -43,8 +43,8 @@ SERPAPI_KEY="your-serpapi-key"
 ### 4. Database Migration
 
 ```bash
-yarn prisma:generate # Generates the Prisma Client
-yarn migrate:latest # Applies migrations
+yarn prisma:generate
+yarn migrate:latest
 ```
 
 ## Development
