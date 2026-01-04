@@ -11,7 +11,7 @@
     "typecheck": "tsc",
     "db:push": "prisma db push",
     "migrate:new": "prisma migrate dev",
-    "migrate:latest": "prisma migrate latest",
+    "migrate:latest": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
     "run:ingest": "tsx ./app/server/scripts/ingest.ts"
   },
