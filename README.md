@@ -1,40 +1,74 @@
-# Welcome to Remix!
+# OpenAI Playground
 
-- 📖 [Remix docs](https://remix.run/docs)
+A Remix-based chat application with document ingestion and vector search capabilities using OpenAI and PostgreSQL with pgvector.
+
+## Prerequisites
+
+- Node.js >= 18.0.0
+- PostgreSQL with pgvector extension
+- OpenAI API key
+- SerpAPI key
+
+## Setup
+
+### 1. Install Dependencies
+
+```bash
+yarn install
+```
+
+### 2. Database Setup
+
+Install and start PostgreSQL:
+
+```bash
+brew install postgresql
+brew services start postgresql
+```
+
+### 3. Environment Variables
+
+Copy the `.env` file and add your API keys:
+
+```bash
+OPENAI_API_KEY="your-openai-api-key"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ai_chat?schema=public"
+SERPAPI_KEY="your-serpapi-key"
+```
+
+**Get API Keys:**
+- OpenAI API key: https://platform.openai.com/api-keys
+- SerpAPI key: https://serpapi.com/
+
+### 4. Database Migration
+
+```bash
+yarn prisma:generate # Generates the Prisma Client
+yarn migrate:latest # Applies migrations
+```
 
 ## Development
 
 Run the dev server:
 
-```shellscript
-npm run dev
+```bash
+yarn dev
 ```
 
-## Deployment
+The app will be available at http://localhost:3000
 
-First, build your app for production:
+## Features
 
-```sh
-npm run build
-```
+- AI-powered chat conversations
+- Document upload and ingestion
+- Vector similarity search
+- Conversation management
+- PostgreSQL with pgvector for embeddings
 
-Then run the app in production mode:
+## Available Scripts
 
-```sh
-npm start
-```
-
-Now you'll need to pick a host to deploy it to.
-
-### DIY
-
-If you're familiar with deploying Node applications, the built-in Remix app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-- `build/server`
-- `build/client`
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever css framework you prefer. See the [Vite docs on css](https://vitejs.dev/guide/features.html#css) for more information.
+- `yarn dev` - Start development server
+- `yarn build` - Build for production
+- `yarn start` - Start production server
+- `yarn prisma:generate` - Generate the Prisma Client
+- `yarn migrate:latest` - Apply database migrations
