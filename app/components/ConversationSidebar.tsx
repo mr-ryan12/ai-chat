@@ -105,7 +105,10 @@ export default function ConversationSidebar({
           )}
           <div className="flex items-center space-x-2">
             {!isCollapsed && (
-              <Link to="/" className="btn-primary text-sm px-3 py-1.5">
+              <Link
+                to="/"
+                className="flex items-center btn-primary text-sm px-3 py-1.5"
+              >
                 <svg
                   className="w-4 h-4 mr-1"
                   fill="none"
