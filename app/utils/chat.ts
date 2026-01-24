@@ -46,18 +46,13 @@ export async function createChatCompletion(
 
     let conversation = conversationId ? await getConversation(conversationId) : null;
 
-    // If no conversation exists (either no ID provided or conversation was deleted), create a new one
-    if (!conversation) {
-      conversation = await createNewConversation();
-    }
-
-    const messages = conversation.messages.map((msg: IDatabaseMessage) => {
+    const messages = conversation ? conversation.messages.map((msg: IDatabaseMessage) => {
       if (msg.role === "user") {
         return new HumanMessage(msg.content);
       } else {
         return new AIMessage(msg.content);
       }
-    });
+    }) : [];
 
     // Add the new user message
     messages.push(new HumanMessage(message));
@@ -122,6 +117,11 @@ export async function createChatCompletion(
       console.error("Error processing response:", e);
       fullResponse =
         "I encountered an error while processing your request. Please try again.";
+    }
+
+    // Only create conversation after successful AI response
+    if (!conversation) {
+      conversation = await createNewConversation();
     }
 
     // Save the messages
