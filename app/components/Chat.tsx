@@ -325,13 +325,13 @@ export default function Chat({
 
         {actionData?.error && (
           <div className="flex justify-start">
-            <div className="message-assistant p-4 shadow-sm max-w-[80%]">
+            <div className="message-assistant p-4 shadow-sm max-w-[80%] !bg-red-500 opacity-80">
               <div className="flex items-start space-x-3">
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-700 mb-1">
                     AI Assistant
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm text-gray-700 dark:text-gray-700">
                     {actionData.error}
                   </div>
                 </div>
