@@ -328,10 +328,10 @@ export default function Chat({
             <div className="message-assistant p-4 shadow-sm max-w-[80%] !bg-red-500 opacity-80">
               <div className="flex items-start space-x-3">
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-700 mb-1">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-900 mb-1">
                     AI Assistant
                   </div>
-                  <div className="text-sm text-gray-700 dark:text-gray-700">
+                  <div className="text-sm text-gray-900 dark:text-gray-900">
                     {actionData.error}
                   </div>
                 </div>
