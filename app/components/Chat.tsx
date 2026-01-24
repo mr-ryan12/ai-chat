@@ -50,13 +50,13 @@ export default function Chat({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-
+  console.log("actionData>>>", actionData);
   // Handle redirect if conversation ID changed
-  useEffect(() => {
-    if (actionData?.redirect) {
-      navigate(actionData.redirect);
-    }
-  }, [actionData?.redirect, navigate]);
+  // useEffect(() => {
+  //   if (actionData?.redirect && ) {
+  //     navigate(actionData.redirect);
+  //   }
+  // }, [actionData?.redirect, navigate]);
 
   // Load existing messages when conversationId changes
   useEffect(() => {
@@ -316,6 +316,23 @@ export default function Chat({
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Thinking...
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {actionData?.error && (
+          <div className="flex justify-start">
+            <div className="message-assistant p-4 shadow-sm max-w-[80%]">
+              <div className="flex items-start space-x-3">
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                    AI Assistant
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {actionData.error}
                   </div>
                 </div>
               </div>
