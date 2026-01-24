@@ -50,46 +50,46 @@ export default function Chat({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-  console.log("actionData>>>", actionData);
+
   // Handle redirect if conversation ID changed
-  // useEffect(() => {
-  //   if (actionData?.redirect && ) {
-  //     navigate(actionData.redirect);
-  //   }
-  // }, [actionData?.redirect, navigate]);
+  useEffect(() => {
+    if (actionData?.redirect) {
+      navigate(actionData.redirect);
+    }
+  }, [actionData?.redirect, navigate]);
 
   // Load existing messages when conversationId changes
   useEffect(() => {
     const loadMessages = async () => {
-      if (initialConversationId && initialConversationId !== conversationId) {
+      if (initialConversationId) {
         setConversationId(initialConversationId);
         setMessages([]);
         setStreamingResponse("");
-
-        // Only try to load messages if we have a valid conversation ID
-        if (initialConversationId && initialConversationId !== "") {
-          try {
-            const response = await fetch(
-              `/api/conversation/${initialConversationId}/messages`
-            );
-            if (response.ok) {
-              const data: MessagesApiResponse = await response.json();
-              const loadedMessages = data.messages.map((msg: ApiMessage) => ({
-                role: msg.role,
-                content: msg.content,
-              }));
-              setMessages(loadedMessages);
-            }
-          } catch (error) {
-            console.error("Failed to load messages:", error);
-            // Don't throw error, just continue with empty messages
+        try {
+          const response = await fetch(
+            `/api/conversation/${initialConversationId}/messages`
+          );
+          if (response.ok) {
+            const data: MessagesApiResponse = await response.json();
+            const loadedMessages = data.messages.map((msg: ApiMessage) => ({
+              role: msg.role,
+              content: msg.content,
+            }));
+            setMessages(loadedMessages);
           }
+        } catch (error) {
+          console.error("Failed to load messages:", error);
         }
+      } else {
+        // No conversation ID, clear everything
+        setMessages([]);
+        setConversationId("");
+        setStreamingResponse("");
       }
     };
 
     loadMessages();
-  }, [initialConversationId, conversationId]);
+  }, [initialConversationId]);
 
   useEffect(() => {
     if (actionData?.message) {
