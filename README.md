@@ -1,6 +1,6 @@
 # OpenAI Playground
 
-A Remix-based chat application with document ingestion and vector search capabilities using OpenAI and PostgreSQL with pgvector. I tried "vibe coding" for the first time with Cursor and can't say I'm impressed. This thing is a mess.
+A Remix-based chat application with document ingestion and vector search capabilities using OpenAI and PostgreSQL with pgvector.
 
 ## Prerequisites
 
