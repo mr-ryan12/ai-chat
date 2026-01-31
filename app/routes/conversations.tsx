@@ -1,4 +1,4 @@
-import { json } from "@remix-run/node";
+import { data } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
 import { getConversations } from "~/server/utils/apiCalls/getConversations";
 import { logger } from "~/server/utils/logger";
@@ -9,14 +9,14 @@ import type { Conversation } from "~/types/conversation.types";
 export async function loader() {
   try {
     const conversations = await getConversations();
-    return json({ conversations });
+    return data({ conversations });
   } catch (error) {
     logger.logError(error, {
       duration: 0,
       path: "/conversations",
       method: "GET",
     });
-    return json({ conversations: [] });
+    return data({ conversations: [] });
   }
 }
 

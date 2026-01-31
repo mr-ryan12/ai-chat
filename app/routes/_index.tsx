@@ -1,3 +1,8 @@
+// Packages
+import { data, type ActionFunctionArgs } from "@remix-run/node";
+import { useState, useEffect } from "react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
+
 // Components
 import Chat from "~/components/Chat";
 import ConversationSidebar from "~/components/ConversationSidebar";
@@ -6,14 +11,6 @@ import Header from "~/components/Header";
 // Utils
 import { createChatCompletion } from "~/utils/chat";
 import { getConversations } from "~/server/utils/apiCalls/getConversations";
-
-// Types
-import {
-  type ActionFunctionArgs,
-} from "@remix-run/node";
-import { useLoaderData, useNavigate } from "@remix-run/react";
-import { useState, useEffect } from "react";
-import { json } from "@remix-run/node";
 
 export async function loader() {
   try {
@@ -26,13 +23,17 @@ export async function loader() {
   }
 }
 
+// TODOS:
+// - separate sea of divs into components
+// - change deprecated 'json' to 'data'
+
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const message = formData.get("message") as string;
   const conversationId = formData.get("conversationId") as string | undefined;
 
   if (!message) {
-    return json({ error: "Message is required" }, { status: 400 });
+    return data({ error: "Message is required" }, { status: 400 });
   }
 
   try {
@@ -42,7 +43,7 @@ export async function action({ request }: ActionFunctionArgs) {
       conversationId: newConversationId,
     } = await createChatCompletion(message, conversationId);
 
-    return json({
+    return data({
       message,
       response,
       words,
@@ -54,7 +55,7 @@ export async function action({ request }: ActionFunctionArgs) {
       stack: error instanceof Error ? error.stack : undefined,
       error,
     });
-    return json({ error: "Failed to process message" }, { status: 500 });
+    return data({ error: "Failed to process message" }, { status: 500 });
   }
 }
 
@@ -85,7 +86,6 @@ export default function Index() {
         {/* Sidebar */}
         <ConversationSidebar
           conversations={sidebarConversations}
-          currentConversationId=""
           onNewConversation={handleNewConversation}
           onConversationSelect={handleConversationSelect}
         />

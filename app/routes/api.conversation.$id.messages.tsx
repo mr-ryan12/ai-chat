@@ -1,4 +1,4 @@
-import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { data, type LoaderFunctionArgs } from "@remix-run/node";
 import { prisma } from "~/server/db.server";
 import { logger } from "~/server/utils/logger";
 
@@ -6,7 +6,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
   const conversationId = params.id;
 
   if (!conversationId) {
-    return json({ error: "Conversation ID is required" }, { status: 400 });
+    return data({ error: "Conversation ID is required" }, { status: 400 });
   }
 
   try {
@@ -25,13 +25,13 @@ export async function loader({ params }: LoaderFunctionArgs) {
       },
     });
 
-    return json({ messages });
+    return data({ messages });
   } catch (error) {
     logger.logError(error, {
       duration: 0,
       path: `/api/conversation/${conversationId}/messages`,
       method: "GET",
     });
-    return json({ error: "Failed to fetch messages" }, { status: 500 });
+    return data({ error: "Failed to fetch messages" }, { status: 500 });
   }
 }
