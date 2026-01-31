@@ -64,6 +64,7 @@ export default function Index() {
   const navigate = useNavigate();
   const [sidebarConversations, setSidebarConversations] =
     useState(conversations);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Update conversations when they change
   useEffect(() => {
@@ -71,28 +72,48 @@ export default function Index() {
   }, [conversations]);
 
   const handleNewConversation = () => {
-    // Refresh the page to start a new conversation
+    setIsMobileSidebarOpen(false);
     navigate(".", { replace: true });
   };
 
   const handleConversationSelect = (id: string) => {
+    setIsMobileSidebarOpen(false);
     navigate(`/conversation/${id}`);
+  };
+
+  const toggleMobileSidebar = () => {
+    setIsMobileSidebarOpen(!isMobileSidebarOpen);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <Header />
-      <div className="flex h-[calc(100vh-85px)]">
+      <Header onMenuClick={toggleMobileSidebar} />
+      <div className="flex h-[calc(100vh-64px)] md:h-[calc(100vh-85px)] relative">
+        {/* Mobile Sidebar Overlay */}
+        {isMobileSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+        )}
+        
         {/* Sidebar */}
-        <ConversationSidebar
-          conversations={sidebarConversations}
-          onNewConversation={handleNewConversation}
-          onConversationSelect={handleConversationSelect}
-        />
+        <div className={`
+          fixed md:relative inset-y-0 left-0 z-50 md:z-auto
+          transform transition-transform duration-300 ease-in-out md:transform-none
+          ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}>
+          <ConversationSidebar
+            conversations={sidebarConversations}
+            onNewConversation={handleNewConversation}
+            onConversationSelect={handleConversationSelect}
+            isMobile={true}
+          />
+        </div>
 
         {/* Main Chat Area */}
-        <main className="flex-1 flex flex-col">
-          <div className="flex-1 p-6">
+        <main className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 p-3 md:p-6">
             <div className="card h-full">
               <Chat />
             </div>

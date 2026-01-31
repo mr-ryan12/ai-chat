@@ -7,11 +7,13 @@ interface ConversationSidebarProps {
   currentConversationId?: string;
   onNewConversation: () => void;
   onConversationSelect: (id: string) => void;
+  isMobile?: boolean;
 }
 
 export default function ConversationSidebar({
   conversations,
   currentConversationId,
+  isMobile = false,
 }: ConversationSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<
@@ -92,7 +94,7 @@ export default function ConversationSidebar({
   return (
     <div
       className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 overflow-y-auto ${
-        isCollapsed ? "w-16" : "w-80"
+        isCollapsed ? "w-16" : isMobile ? "w-80" : "w-80"
       }`}
     >
       {/* Header */}

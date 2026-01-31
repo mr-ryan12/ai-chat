@@ -168,14 +168,14 @@ export default function Chat({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] max-w-4xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-200px)] max-w-4xl mx-auto">
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto mb-6 space-y-6 px-4">
+      <div className="flex-1 overflow-y-auto mb-4 md:mb-6 space-y-4 md:space-y-6 px-2 md:px-4">
         {messages.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="text-center py-8 md:py-12">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg
-                className="w-8 h-8 text-white"
+                className="w-6 h-6 md:w-8 md:h-8 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -188,10 +188,10 @@ export default function Chat({
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               Welcome to AI Chatbot
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+            <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 max-w-md mx-auto px-4">
               Start a conversation by typing a message below. I can help you
               with questions, analysis, and more.
             </p>
@@ -206,15 +206,15 @@ export default function Chat({
             }`}
           >
             <div
-              className={`max-w-[80%] p-4 ${
+              className={`max-w-[85%] md:max-w-[80%] p-3 md:p-4 ${
                 message.role === "user" ? "message-user" : "message-assistant"
               } shadow-sm`}
             >
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start space-x-2 md:space-x-3">
                 {message.role === "assistant" && (
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="w-6 h-6 md:w-8 md:h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                     <svg
-                      className="w-4 h-4 text-white"
+                      className="w-3 h-3 md:w-4 md:h-4 text-white"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -229,17 +229,17 @@ export default function Chat({
                   </div>
                 )}
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  <div className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                     {message.role === "user" ? "You" : "AI Assistant"}
                   </div>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                  <div className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
                     {message.content}
                   </div>
                 </div>
                 {message.role === "user" && (
-                  <div className="w-8 h-8 bg-gradient-to-r from-gray-500 to-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="w-6 h-6 md:w-8 md:h-8 bg-gradient-to-r from-gray-500 to-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
                     <svg
-                      className="w-4 h-4 text-white"
+                      className="w-3 h-3 md:w-4 md:h-4 text-white"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -343,14 +343,14 @@ export default function Chat({
       </div>
 
       {/* Input Container */}
-      <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 rounded-b-xl">
-        <Form method="post" className="flex gap-3 items-end">
+      <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 md:p-4 rounded-b-xl">
+        <Form method="post" className="flex gap-2 md:gap-3 items-end">
           <input type="hidden" name="conversationId" value={conversationId} />
 
           {/* File Upload Button */}
           <button
             type="button"
-            className="relative group btn-secondary p-3 rounded-xl hover:scale-105 transition-transform duration-200"
+            className="relative group btn-secondary p-2 md:p-3 rounded-xl hover:scale-105 transition-transform duration-200 flex-shrink-0"
             onClick={handleFileIconClick}
             aria-label="Upload file"
           >
@@ -360,7 +360,7 @@ export default function Chat({
               viewBox="0 0 24 24"
               strokeWidth={1.5}
               stroke="currentColor"
-              className="w-5 h-5"
+              className="w-4 h-4 md:w-5 md:h-5"
             >
               <path
                 strokeLinecap="round"
@@ -368,7 +368,7 @@ export default function Chat({
                 d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13"
               />
             </svg>
-            <span className="absolute left-1/2 -translate-x-1/2 -top-10 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
+            <span className="absolute left-1/2 -translate-x-1/2 -top-10 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10 hidden md:block">
               Upload file
             </span>
           </button>
@@ -382,14 +382,14 @@ export default function Chat({
           />
 
           {/* Message Input */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative min-w-0">
             <input
               type="text"
               name="message"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your message..."
-              className="input-modern w-full pr-12 resize-none"
+              className="input-modern w-full pr-10 md:pr-12 text-sm md:text-base"
               disabled={isSubmitting}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -403,10 +403,10 @@ export default function Chat({
             <button
               type="submit"
               disabled={isSubmitting || !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 btn-primary p-2 rounded-lg"
+              className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2 btn-primary p-1.5 md:p-2 rounded-lg"
             >
               <svg
-                className="w-4 h-4"
+                className="w-3 h-3 md:w-4 md:h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
