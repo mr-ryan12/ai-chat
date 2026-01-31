@@ -1,4 +1,4 @@
-import { json } from "@remix-run/node";
+import { data } from "@remix-run/node";
 import fs from "fs/promises";
 import path from "path";
 
@@ -28,7 +28,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         status: 400,
         service: "INTERNAL",
       });
-      return json({ error: "No file uploaded" }, { status: 400 });
+      return data({ error: "No file uploaded" }, { status: 400 });
     }
     const buffer = Buffer.from(await file.arrayBuffer());
     const originalname = file.name;
@@ -54,7 +54,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       service: "INTERNAL",
     });
 
-    return json({ success: true });
+    return data({ success: true });
   } catch (error) {
     logger.logError(error, {
       method: request.method,
@@ -63,7 +63,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       status: 500,
       service: "INTERNAL",
     });
-    return json(
+    return data(
       { error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );

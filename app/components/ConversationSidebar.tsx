@@ -91,7 +91,7 @@ export default function ConversationSidebar({
 
   return (
     <div
-      className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 overflow-y-auto ${
+      className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 overflow-y-auto ${
         isCollapsed ? "w-16" : "w-80"
       }`}
     >

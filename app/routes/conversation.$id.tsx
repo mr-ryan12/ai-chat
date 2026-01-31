@@ -1,29 +1,36 @@
-import {
-  json,
-  type LoaderFunctionArgs,
-  type ActionFunctionArgs,
-  redirect,
-} from "@remix-run/node";
-import { useLoaderData, useNavigate } from "@remix-run/react";
+// Packages
+import { useState, useEffect } from "react";
+import { data, useLoaderData, useNavigate } from "@remix-run/react";
+import { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+
+// Utils
+import { logger } from "~/server/utils/logger";
+import { createChatCompletion } from "~/utils/chat";
 import { getConversation } from "~/server/utils/apiCalls/getConversation";
 import { getConversations } from "~/server/utils/apiCalls/getConversations";
-import { logger } from "~/server/utils/logger";
+
+// Components
 import Chat from "~/components/Chat";
 import ConversationSidebar from "~/components/ConversationSidebar";
 import ThemeToggle from "~/components/ThemeToggle";
-import { useState, useEffect } from "react";
-import { createChatCompletion } from "~/utils/chat";
+
+// Types
 import type { Conversation } from "~/types/conversation.types";
 
 // Type guard function to ensure conversations array is properly typed
-function isValidConversationsArray(conversations: unknown): conversations is Conversation[] {
-  return Array.isArray(conversations) && 
-    conversations.every((conv): conv is Conversation => 
-      conv !== null && 
-      typeof conv === 'object' && 
-      'id' in conv && 
-      'title' in conv
-    );
+function isValidConversationsArray(
+  conversations: unknown,
+): conversations is Conversation[] {
+  return (
+    Array.isArray(conversations) &&
+    conversations.every(
+      (conv): conv is Conversation =>
+        conv !== null &&
+        typeof conv === "object" &&
+        "id" in conv &&
+        "title" in conv,
+    )
+  );
 }
 
 export async function loader({ params }: LoaderFunctionArgs) {
@@ -34,15 +41,10 @@ export async function loader({ params }: LoaderFunctionArgs) {
     const conversation = conversationId
       ? await getConversation(conversationId)
       : null;
-    
-    // If conversation doesn't exist, redirect to home page
-    if (conversationId && !conversation) {
-      return redirect("/");
-    }
-    
+
     const conversations = await getConversations();
 
-    return json({
+    return data({
       conversation,
       conversations,
       conversationId,
@@ -53,7 +55,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
       path: `/conversation/${conversationId}`,
       method: "GET",
     });
-    return json({
+    return data({
       conversation: null,
       conversations: [],
       conversationId: null,
@@ -67,7 +69,10 @@ export async function action({ request }: ActionFunctionArgs) {
   const conversationId = formData.get("conversationId") as string | undefined;
 
   if (!message) {
-    return json({ error: "Message is required" }, { status: 400 });
+    return data(
+      { error: "Message is required", response: "", words: [] },
+      { status: 400 },
+    );
   }
 
   try {
@@ -80,7 +85,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // If the conversation ID changed (meaning a new conversation was created),
     // redirect to the new conversation URL
     if (conversationId && conversationId !== newConversationId) {
-      return json({
+      return data({
         message,
         response,
         words,
@@ -89,7 +94,7 @@ export async function action({ request }: ActionFunctionArgs) {
       });
     }
 
-    return json({
+    return data({
       message,
       response,
       words,
@@ -101,17 +106,21 @@ export async function action({ request }: ActionFunctionArgs) {
       stack: error instanceof Error ? error.stack : undefined,
       error,
     });
-    return json({ error: "Failed to process message" }, { status: 500 });
+    return data(
+      { error: "Failed to process message", response: "", words: [] },
+      { status: 500 },
+    );
   }
 }
 
 export default function ConversationPage() {
-  const { conversations, conversationId } =
-    useLoaderData<typeof loader>();
+  const { conversations, conversationId } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
 
   // Ensure conversations is properly typed and handle potential null values
-  const safeConversations: Conversation[] | null = isValidConversationsArray(conversations)
+  const safeConversations: Conversation[] | null = isValidConversationsArray(
+    conversations,
+  )
     ? conversations
     : null;
 
@@ -121,9 +130,8 @@ export default function ConversationPage() {
 
   // Update conversations when they change
   useEffect(() => {
-    const newSafeConversations: Conversation[] | null = isValidConversationsArray(conversations)
-      ? conversations
-      : null;
+    const newSafeConversations: Conversation[] | null =
+      isValidConversationsArray(conversations) ? conversations : null;
     setSidebarConversations(newSafeConversations);
   }, [conversations]);
 
@@ -178,7 +186,7 @@ export default function ConversationPage() {
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-80px)]">
+      <div className="flex h-[calc(100vh-85px)]">
         {/* Sidebar */}
         <ConversationSidebar
           conversations={sidebarConversations}

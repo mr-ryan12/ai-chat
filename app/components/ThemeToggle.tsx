@@ -57,10 +57,6 @@ export default function ThemeToggle() {
           />
         </svg>
       )}
-
-      <span className="absolute left-1/2 -translate-x-1/2 -top-10 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
-        {theme === "light" ? "Dark mode" : "Light mode"}
-      </span>
     </button>
   );
 }

@@ -61,35 +61,35 @@ export default function Chat({
   // Load existing messages when conversationId changes
   useEffect(() => {
     const loadMessages = async () => {
-      if (initialConversationId && initialConversationId !== conversationId) {
+      if (initialConversationId) {
         setConversationId(initialConversationId);
         setMessages([]);
         setStreamingResponse("");
-
-        // Only try to load messages if we have a valid conversation ID
-        if (initialConversationId && initialConversationId !== "") {
-          try {
-            const response = await fetch(
-              `/api/conversation/${initialConversationId}/messages`
-            );
-            if (response.ok) {
-              const data: MessagesApiResponse = await response.json();
-              const loadedMessages = data.messages.map((msg: ApiMessage) => ({
-                role: msg.role,
-                content: msg.content,
-              }));
-              setMessages(loadedMessages);
-            }
-          } catch (error) {
-            console.error("Failed to load messages:", error);
-            // Don't throw error, just continue with empty messages
+        try {
+          const response = await fetch(
+            `/api/conversation/${initialConversationId}/messages`
+          );
+          if (response.ok) {
+            const data: MessagesApiResponse = await response.json();
+            const loadedMessages = data.messages.map((msg: ApiMessage) => ({
+              role: msg.role,
+              content: msg.content,
+            }));
+            setMessages(loadedMessages);
           }
+        } catch (error) {
+          console.error("Failed to load messages:", error);
         }
+      } else {
+        // No conversation ID, clear everything
+        setMessages([]);
+        setConversationId("");
+        setStreamingResponse("");
       }
     };
 
     loadMessages();
-  }, [initialConversationId, conversationId]);
+  }, [initialConversationId]);
 
   useEffect(() => {
     if (actionData?.message) {
@@ -316,6 +316,23 @@ export default function Chat({
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Thinking...
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {actionData?.error && (
+          <div className="flex justify-start">
+            <div className="message-assistant p-4 shadow-sm max-w-[80%] !bg-red-500 opacity-80">
+              <div className="flex items-start space-x-3">
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-900 mb-1">
+                    AI Assistant
+                  </div>
+                  <div className="text-sm text-gray-900 dark:text-gray-900">
+                    {actionData.error}
                   </div>
                 </div>
               </div>
