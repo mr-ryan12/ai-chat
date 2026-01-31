@@ -76,7 +76,7 @@ export default function ConversationsPage() {
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-80px)]">
+      <div className="flex h-[calc(100vh-85px)]">
         {/* Sidebar */}
         <ConversationSidebar
           conversations={safeConversations}
