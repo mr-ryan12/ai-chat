@@ -1,7 +1,7 @@
 export interface ILogRequest {
   method: string;
   path: string;
-  duration: number;
+  duration?: number;
   status?: number;
   service?: TServiceName;
 }

@@ -11,6 +11,8 @@ import Header from "~/components/Header";
 // Utils
 import { createChatCompletion } from "~/utils/chat";
 import { getConversations } from "~/server/utils/apiCalls/getConversations";
+import { logger } from "~/server/utils/logger";
+import { hasStatus } from "~/server/utils/loggerHelpers";
 
 export async function loader() {
   try {
@@ -50,10 +52,11 @@ export async function action({ request }: ActionFunctionArgs) {
       conversationId: newConversationId,
     });
   } catch (error) {
-    console.error("Chat error details:", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      error,
+    logger.logError(error, {
+      method: request.method,
+      path: request.url,
+      duration: 0,
+      status: hasStatus(error) ? error.status : 500,
     });
     return data({ error: "Failed to process message" }, { status: 500 });
   }
