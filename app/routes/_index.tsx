@@ -12,8 +12,8 @@ import Header from "~/components/Header";
 import { createChatCompletion } from "~/utils/chat";
 import { getConversations } from "~/server/utils/apiCalls/getConversations";
 import { logger } from "~/server/utils/logger";
-import { hasStatus } from "~/server/utils/loggerHelpers";
 import { requireAuth } from "~/utils/auth.server";
+import { hasStatus } from "~/server/utils/loggerHelpers";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAuth(request);
