@@ -1,8 +1,16 @@
-import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "@remix-run/node";
-import { Form, useActionData, Link } from "@remix-run/react";
+// Packages
 import bcrypt from "bcryptjs";
+import { Form, useActionData, Link } from "@remix-run/react";
+import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "@remix-run/node";
+
+// Server
 import { prisma } from "~/server/db.server";
+
+// Components
 import { createUserSession, requireAuth } from "~/utils/auth.server";
+
+// Utils
+import TogglePassword from "~/components/TogglePassword";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   // Redirect if already logged in
@@ -88,26 +96,20 @@ export default function Signup() {
               className="relative block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Last Name"
             />
-            <input
-              name="password"
-              type="password"
-              required
-              className="relative block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Password"
-            />
+            <TogglePassword />
           </div>
-          
+
           {actionData?.error && (
             <div className="text-red-600 text-sm">{actionData.error}</div>
           )}
-          
+
           <button
             type="submit"
             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Create Account
           </button>
-          
+
           <div className="text-center">
             <Link to="/login" className="text-indigo-600 hover:text-indigo-500">
               Already have an account? Sign in

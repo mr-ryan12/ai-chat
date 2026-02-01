@@ -1,5 +1,11 @@
+// Packages
 import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, redirect, useActionData, Link } from "@remix-run/react";
+
+// Components
+import TogglePassword from "~/components/TogglePassword";
+
+// Utils
 import { login, createUserSession, requireAuth } from "~/utils/auth.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -55,19 +61,8 @@ export default function Login() {
               placeholder="Username"
             />
           </div>
-          <div>
-            <label htmlFor="password" className="sr-only">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              className="relative block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Password"
-            />
-          </div>
+
+          <TogglePassword />
 
           {actionData?.error && (
             <div className="text-red-600 text-sm">{actionData.error}</div>
@@ -79,9 +74,12 @@ export default function Login() {
           >
             Sign in
           </button>
-          
+
           <div className="text-center">
-            <Link to="/signup" className="text-indigo-600 hover:text-indigo-500">
+            <Link
+              to="/signup"
+              className="text-indigo-600 hover:text-indigo-500"
+            >
               Don't have an account? Sign up
             </Link>
           </div>
