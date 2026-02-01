@@ -1,12 +1,14 @@
-import { data } from "@remix-run/node";
+import { data, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
 import { getConversations } from "~/server/utils/apiCalls/getConversations";
 import { logger } from "~/server/utils/logger";
 import ConversationSidebar from "~/components/ConversationSidebar";
 import ThemeToggle from "~/components/ThemeToggle";
 import type { Conversation } from "~/types/conversation.types";
+import { requireAuth } from "~/utils/auth.server";
 
-export async function loader() {
+export async function loader({ request }: LoaderFunctionArgs) {
+  await requireAuth(request);
   try {
     const conversations = await getConversations();
     return data({ conversations });

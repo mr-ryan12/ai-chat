@@ -1,5 +1,5 @@
 // Packages
-import { data, type ActionFunctionArgs } from "@remix-run/node";
+import { data, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useState, useEffect } from "react";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 
@@ -13,8 +13,11 @@ import { createChatCompletion } from "~/utils/chat";
 import { getConversations } from "~/server/utils/apiCalls/getConversations";
 import { logger } from "~/server/utils/logger";
 import { hasStatus } from "~/server/utils/loggerHelpers";
+import { requireAuth } from "~/utils/auth.server";
 
-export async function loader() {
+export async function loader({ request }: LoaderFunctionArgs) {
+  await requireAuth(request);
+
   try {
     // Call the function directly instead of making a fetch request
     const conversations = await getConversations();
@@ -30,6 +33,8 @@ export async function loader() {
 // - change deprecated 'json' to 'data'
 
 export async function action({ request }: ActionFunctionArgs) {
+  await requireAuth(request);
+  
   const formData = await request.formData();
   const message = formData.get("message") as string;
   const conversationId = formData.get("conversationId") as string | undefined;
