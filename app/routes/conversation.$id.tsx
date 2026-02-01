@@ -5,6 +5,7 @@ import { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 
 // Utils
 import { logger } from "~/server/utils/logger";
+import { requireAuth } from "~/utils/auth.server";
 import { createChatCompletion } from "~/utils/chat";
 import { getConversation } from "~/server/utils/apiCalls/getConversation";
 import { getConversations } from "~/server/utils/apiCalls/getConversations";
@@ -33,7 +34,8 @@ function isValidConversationsArray(
   );
 }
 
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  await requireAuth(request);
   const conversationId = params.id;
 
   try {
@@ -64,6 +66,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  await requireAuth(request);
   const formData = await request.formData();
   const message = formData.get("message") as string;
   const conversationId = formData.get("conversationId") as string | undefined;

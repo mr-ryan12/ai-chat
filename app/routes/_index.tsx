@@ -1,5 +1,5 @@
 // Packages
-import { data, type ActionFunctionArgs } from "@remix-run/node";
+import { data, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useState, useEffect } from "react";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 
@@ -11,8 +11,13 @@ import Header from "~/components/Header";
 // Utils
 import { createChatCompletion } from "~/utils/chat";
 import { getConversations } from "~/server/utils/apiCalls/getConversations";
+import { logger } from "~/server/utils/logger";
+import { hasStatus } from "~/server/utils/loggerHelpers";
+import { requireAuth } from "~/utils/auth.server";
 
-export async function loader() {
+export async function loader({ request }: LoaderFunctionArgs) {
+  await requireAuth(request);
+
   try {
     // Call the function directly instead of making a fetch request
     const conversations = await getConversations();
@@ -23,11 +28,9 @@ export async function loader() {
   }
 }
 
-// TODOS:
-// - separate sea of divs into components
-// - change deprecated 'json' to 'data'
-
 export async function action({ request }: ActionFunctionArgs) {
+  await requireAuth(request);
+  
   const formData = await request.formData();
   const message = formData.get("message") as string;
   const conversationId = formData.get("conversationId") as string | undefined;
@@ -50,10 +53,11 @@ export async function action({ request }: ActionFunctionArgs) {
       conversationId: newConversationId,
     });
   } catch (error) {
-    console.error("Chat error details:", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      error,
+    logger.logError(error, {
+      method: request.method,
+      path: request.url,
+      duration: 0,
+      status: hasStatus(error) ? error.status : 500,
     });
     return data({ error: "Failed to process message" }, { status: 500 });
   }
