@@ -1,13 +1,18 @@
-import { data } from "@remix-run/node";
+// Packages
+import { data, ActionFunctionArgs } from "@remix-run/node";
 import fs from "fs/promises";
 import path from "path";
+import crypto from "crypto";
 
+// Utils
 import { ingestDocument } from "../server/utils/documentService";
 import { logger } from "../server/utils/logger";
-import type { ActionFunctionArgs } from "@remix-run/node";
+import { requireAuth } from "~/utils/auth.server";
 import { extractTextFromFile } from "../utils/extractTextFromFile";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  await requireAuth(request);
+
   logger.logRequest({
     method: request.method,
     path: "/upload-file",
@@ -30,6 +35,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
       return data({ error: "No file uploaded" }, { status: 400 });
     }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const originalname = file.name;
     const mimetype = file.type;
@@ -40,11 +46,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       mimetype,
     });
 
-    // Save text to temp file
-    const tempTextPath = path.join("/tmp", `${originalname}.txt`);
-    await fs.writeFile(tempTextPath, text, "utf-8");
-    await ingestDocument(tempTextPath);
-    await fs.unlink(tempTextPath);
+    // Generate secure filename to prevent path traversal
+    const safeFilename = crypto.randomUUID() + ".txt";
+    const tempTextPath = path.join("/tmp", safeFilename);
+
+    try {
+      await fs.writeFile(tempTextPath, text, "utf-8");
+      await ingestDocument(tempTextPath);
+    } finally {
+      // Always cleanup temp file
+      try {
+        await fs.unlink(tempTextPath);
+      } catch (unlinkError) {
+        logger.logError(unlinkError, {
+          method: request.method,
+          path: "/upload-file",
+          duration: 0,
+          status: 500,
+          service: "INTERNAL",
+        });
+      }
+    }
 
     logger.logRequest({
       method: request.method,
@@ -65,7 +87,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     return data(
       { error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 };
@@ -73,8 +95,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function UploadFile() {
   return null;
 }
-
-// TypeScript module declarations for missing types
-// Remove if you add @types/pdf-parse or @types/mammoth in the future
-// declare module "pdf-parse";
-// declare module "mammoth";

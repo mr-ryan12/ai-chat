@@ -1,8 +1,16 @@
-import { data, type LoaderFunctionArgs } from "@remix-run/node";
-import { prisma } from "~/server/db.server";
-import { logger } from "~/server/utils/logger";
+// Packages
+import { data, LoaderFunctionArgs } from "@remix-run/node";
 
-export async function loader({ params }: LoaderFunctionArgs) {
+// Server
+import { prisma } from "~/server/db.server";
+
+// Utils
+import { logger } from "~/server/utils/logger";
+import { requireAuth } from "~/utils/auth.server";
+
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  await requireAuth(request);
+
   const conversationId = params.id;
 
   if (!conversationId) {
