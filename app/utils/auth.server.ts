@@ -26,20 +26,14 @@ export async function requireAuth(request: Request) {
 }
 
 export async function login(username: string, password: string) {
-  console.log("Login attempt:", { username, password });
-  
   const user = await prisma.user.findUnique({ where: { username } });
-  console.log("User found:", !!user);
-  
+
   if (!user) {
-    console.log("No user found");
     return null;
   }
-  
-  console.log("Stored hash:", user.password);
+
   const isValid = await bcrypt.compare(password, user.password);
-  console.log("Password valid:", isValid);
-  
+
   if (!isValid) {
     return null;
   }
