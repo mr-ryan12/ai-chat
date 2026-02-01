@@ -141,6 +141,17 @@ export default function Chat({
     fileInputRef.current?.click();
   };
 
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    if (uploadMessage) {
+      timeoutId = setTimeout(() => {
+        setUploadMessage("");
+      }, 2000);
+    }
+
+    return () => clearTimeout(timeoutId);
+  }, [uploadMessage]);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -445,7 +456,7 @@ export default function Chat({
 
         {uploadMessage && (
           <div
-            className={`mt-3 text-sm ${
+            className={`mt-3 text-sm animate-fade-out ${
               uploadMessage.includes("successfully")
                 ? "text-green-600 dark:text-green-400"
                 : "text-red-600 dark:text-red-400"
