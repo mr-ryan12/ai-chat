@@ -13,6 +13,7 @@
     "migrate:new": "prisma migrate dev",
     "migrate:latest": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
+    "postinstall": "prisma generate",
     "run:ingest": "tsx ./app/server/scripts/ingest.ts"
   },
   "dependencies": {
