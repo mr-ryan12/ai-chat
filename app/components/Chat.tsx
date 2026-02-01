@@ -355,7 +355,7 @@ export default function Chat({
       </div>
 
       {/* Input Container */}
-      <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 md:p-4 rounded-b-xl">
+      <div className="relative border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 md:p-4 rounded-b-xl">
         <Form method="post" className="flex gap-2 md:gap-3 items-end">
           <input type="hidden" name="conversationId" value={conversationId} />
 
@@ -436,7 +436,7 @@ export default function Chat({
 
         {/* Upload Status */}
         {uploading && (
-          <div className="mt-3 flex items-center space-x-2 text-blue-600 dark:text-blue-400">
+          <div className="absolute mt-3 flex items-center space-x-2 text-blue-600 dark:text-blue-400">
             <svg
               className="w-4 h-4 animate-spin"
               fill="none"
@@ -456,7 +456,7 @@ export default function Chat({
 
         {uploadMessage && (
           <div
-            className={`mt-3 text-sm animate-fade-out ${
+            className={`absolute mt-3 text-sm animate-fade-out ${
               uploadMessage.includes("successfully")
                 ? "text-green-600 dark:text-green-400"
                 : "text-red-600 dark:text-red-400"
