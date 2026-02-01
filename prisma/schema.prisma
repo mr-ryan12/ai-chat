@@ -15,6 +15,15 @@ datasource db {
   extensions = [vector]
 }
 
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  createdAt    DateTime @default(now())
+}
+
 model Conversation {
   id        String    @id @default(cuid())
   title     String? // Optional title for the conversation
