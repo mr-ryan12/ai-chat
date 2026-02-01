@@ -3,8 +3,8 @@ import { data, ActionFunctionArgs } from "@remix-run/node";
 
 // Utils
 import { logger } from "~/server/utils/logger";
-import { deleteConversation } from "~/server/utils/apiCalls/deleteConversation";
 import { requireAuth } from "~/utils/auth.server";
+import { deleteConversation } from "~/server/utils/apiCalls/deleteConversation";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   await requireAuth(request);

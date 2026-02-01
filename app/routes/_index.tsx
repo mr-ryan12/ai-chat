@@ -28,10 +28,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
-// TODOS:
-// - separate sea of divs into components
-// - change deprecated 'json' to 'data'
-
 export async function action({ request }: ActionFunctionArgs) {
   await requireAuth(request);
   

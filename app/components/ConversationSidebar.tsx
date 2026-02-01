@@ -1,5 +1,8 @@
+// Packages
 import { useState } from "react";
 import { Link, useNavigate } from "@remix-run/react";
+
+// Types
 import type { Conversation } from "~/types/conversation.types";
 
 interface ConversationSidebarProps {
