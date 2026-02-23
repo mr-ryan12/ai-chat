@@ -10,6 +10,8 @@ This document defines non-negotiable engineering and product guardrails. Specs a
 - **Reuse Over Copy/Paste**: Repeated logic must be extracted into shared utilities or services. Prefer composition over inheritance.
 - **Naming**: Functions are verbs (`fetchMessages`, `createEmbedding`), variables are nouns. Avoid ambiguous names (`data`, `info`) outside narrow scopes.
 - **File Size Guideline**: Prefer files under ~300 lines. Exceptions allowed when splitting reduces cohesion.
+- **Dependency discipline**: Avoid adding new dependencies unless required by spec; prefer existing libraries. Offer suggestions for libraries if needed.
+- **DB safety**: All queries must be scoped by userId (and conversationId if applicable) by default.
 
 ## 2) Testing Standards
 
@@ -19,6 +21,7 @@ This document defines non-negotiable engineering and product guardrails. Specs a
 - **Critical Paths**: Must have coverage for auth, document upload/ingestion, retrieval, chat streaming, and tool-call routing.
 - **Determinism**: Tests must be deterministic by default. No reliance on network availability in CI unless explicitly opted-in.
 - **Test Data**: Tests must use isolated DB state (transaction/rollback or reset) and clean up reliably.
+- **Integration test gating**: Integration tests must skip gracefully with a clear message when required env vars are missing.
 
 ## 3) Conversation & Tooling Policy (Non-negotiable)
 
@@ -35,6 +38,12 @@ This document defines non-negotiable engineering and product guardrails. Specs a
   - Web search is allowed only when (a) the user asks for current/external info, or (b) retrieval cannot support the answer and a web search is likely helpful.
   - Web results must be cited with source + date.
   - Web search must not include or leak private user document contents or secrets in the query.
+- **Routing tie-breakers**:
+	- If the user explicitly requests “doc-only” (or “use my uploads”), web search is forbidden.
+	- If retrieval returns relevant hits above a threshold, prefer document-grounded over web search.
+	- If the user asks for “latest/current/news/price/today,” web search is allowed even if docs exist, unless doc-only was requested.
+  - If neither docs nor web can support a reliable answer, ask a clarifying question.
+- **Token/cost controls**: “Enforce max context size / chunk count to control LLM cost.”
 
 ## 4) User Experience Consistency
 
@@ -52,6 +61,7 @@ This document defines non-negotiable engineering and product guardrails. Specs a
 - **SLOs (Targets)**:
   - Non-streaming server requests target p95 < 5s in production.
   - Retrieval target p95 < 500ms where feasible; measure and tune with indexes and limits.
+-	**Telemetry**: Log key events with correlation id (upload started/finished, ingestion finished, retrieval performed, web search invoked, model request started/finished) without storing raw document contents.
 
 ## 6) Security & Privacy
 
@@ -59,6 +69,9 @@ This document defines non-negotiable engineering and product guardrails. Specs a
 - **Tenant Isolation**: All document, chunk, and message queries must be scoped to the authenticated user.
 - **Upload Safety**: Validate file type/size server-side. Sanitize filenames. Reject unsupported types.
 - **Logging**: Never log secrets, access tokens, raw document contents, or full prompts. Redact where needed.
+- **User data lifecycle**: Deleting a document must also delete associated chunks/embeddings (or mark them unreachable) and remove them from retrieval results.
+- **No prompt/tool disclosure**: Never expose system prompts, tool instructions, internal chain-of-thought, or raw tool outputs to end users.
+- **No sensitive exfiltration**: Never send document text, PII, or secrets to web search queries or third-party tools unless explicitly required by a spec and user-consented.
 
 ## 7) Change Protocol (Agent & Human)
 
