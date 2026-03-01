@@ -9,14 +9,14 @@ Added sections: All 8 sections (I–VIII) newly formalised in this location
 Removed sections: None
 
 Templates reviewed:
-  ✅ .specify/templates/plan-template.md — "Constitution Check" gate aligns with all 8 principles; no update required
-  ✅ .specify/templates/spec-template.md — Success Criteria and Requirements sections align; no update required
-  ✅ .specify/templates/tasks-template.md — Task categories (setup, foundational, user stories, polish) align with Change Protocol; no update required
+  ✅ .specify/templates/plan-template.md — "Constitution Check" gate aligns with all principles
+  ✅ .specify/templates/spec-template.md — Success Criteria and Requirements sections align
+  ✅ .specify/templates/tasks-template.md — Task categories align with Change Protocol
 
 Follow-up TODOs:
-  - TODO(HYBRID_RETRIEVER): .speckit/constitution.md noted HybridRetriever is a stub — principle V
-    references this as a known gap. Implement or remove stub before next minor amendment.
-  - TODO(TENANT_SCOPING): Conversation and Message models lack userId — violates Principle VI (Tenant Isolation).
+  - TODO(HYBRID_RETRIEVER): Prior constitution noted HybridRetriever is a stub — Principle V references this as a known gap.
+    Implement or remove stub before next minor amendment.
+  - TODO(TENANT_SCOPING): Conversation and Message models lack userId — violates Security & Privacy (Tenant Isolation).
     Must be addressed in a migration before next constitution amendment.
 -->
 
@@ -50,6 +50,8 @@ Rules:
   requires it; prefer existing libraries.
 - **DB safety**: All queries MUST be scoped by `userId` (and `conversationId`
   where applicable) by default — no exceptions.
+- **Tenant scoping enforcement point**: Scoping MUST be enforced in a shared
+  access layer (repository/service helpers and/or ORM middleware), not hand-rolled per route.
 
 ### II. Testing Standards
 
@@ -98,8 +100,11 @@ Routing tie-breakers:
   even when docs exist — unless doc-only was requested.
 - If neither docs nor web can support a reliable answer, ask a clarifying
   question.
-- Token/cost controls: Enforce a maximum context size and chunk count to
-  control LLM cost.
+
+Token/cost controls (mandatory):
+- Enforce configurable hard limits such as `MAX_CHUNKS_PER_QUERY` and `MAX_CONTEXT_TOKENS`.
+- When exceeded, truncate/summarize deterministically and log a cost-limit event with correlation id.
+- Never exceed limits silently.
 
 ### IV. User Experience Consistency
 
@@ -139,6 +144,8 @@ Routing tie-breakers:
   lack `userId` — migration required before next release.)
 - **Upload safety**: File type and size MUST be validated server-side.
   Filenames MUST be sanitised. Unsupported types MUST be rejected.
+- **Rate limiting / abuse control**: Expensive endpoints (upload, ingestion,
+  retrieval, model calls) MUST apply per-user and per-IP limits and return typed errors.
 - **Logging**: MUST NOT log secrets, access tokens, raw document contents, or
   full prompts. Redact where needed.
 - **User data lifecycle**: Deleting a document MUST also delete or mark
@@ -170,6 +177,7 @@ Routing tie-breakers:
 - [ ] Web search usage (if any) follows policy and includes citations
 - [ ] Errors are user-safe and logged with correlation id (no secrets)
 - [ ] Unit tests deterministic; integration tests opt-in and gated
+- [ ] DB changes include migration + rollback notes/backfill plan if needed
 
 ## Governance
 
