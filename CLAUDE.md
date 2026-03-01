@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Claude Steering
+
+### Read first (canonical)
+- .specify/memory/constitution.md
+- .specify/memory/product.md
+
+### Workflow
+- For non-trivial changes, keep SpecKit artifacts in `.specify/specs/<feature>/` (spec → plan → tasks) up to date.
+
 ## Commands
 
 ```bash
