@@ -77,7 +77,7 @@ NODE_ENV          # development | production
 
 ## Project constitution
 
-Engineering guardrails are defined in `.speckit/constitution.md`. Key rules:
+Engineering guardrails are defined in `.specify/memory/constitution.md`. Key rules:
 - Every chat response must be routed to one of: general, document-grounded (with citations), web search (with citations), or clarifying question
 - Document-grounded answers require citations: `DocumentName • chunkId • short snippet`; never imply document content without retrieval evidence
 - Web search must not include user document contents or secrets in the query
