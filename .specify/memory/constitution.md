@@ -2,7 +2,7 @@
 SYNC IMPACT REPORT
 ==================
 Version change: (none — initial formal versioning) → 1.0.0
-Source: Migrated from .speckit/constitution.md (previously unversioned)
+Source: Migrated from a previously unversioned constitution (former location: .speckit/constitution.md; directory removed)
 
 Modified principles: N/A (initial creation)
 Added sections: All 8 sections (I–VIII) newly formalised in this location
