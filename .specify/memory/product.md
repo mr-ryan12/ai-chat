@@ -1,4 +1,4 @@
-# Product: OpenAI Playground
+# Product: AI Chatbot
 
 ## Target User
 
