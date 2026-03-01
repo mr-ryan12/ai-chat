@@ -61,16 +61,7 @@ Cookie-based sessions via Remix `createCookieSessionStorage`. Sessions are 30-da
 
 ### Logging
 
-Structured logging via `pino` + `pino-pretty`. Use the singleton `logger` from `app/server/utils/logger.ts`. Never log raw document contents, full prompts, or secrets.
-
-### Key conventions
-
-- `~/` path alias resolves to `app/` (configured via `vite-tsconfig-paths`)
-- Server-only code lives in `app/server/`; shared client+server utilities in `app/utils/`
-- TypeScript `strict` mode is enabled; explicit return types required on non-trivial functions
-- All DB queries should be scoped by `userId` (and `conversationId` where applicable)
-- Route loaders/actions must catch errors and return typed error responses — no unhandled promise rejections
-- File size target: ~300 lines per file
+Structured logging via `pino` + `pino-pretty`. Use the singleton `logger` from `app/server/utils/logger.ts`.
 
 ## Environment variables
 
@@ -86,10 +77,4 @@ NODE_ENV          # development | production
 
 ## Project constitution
 
-Engineering guardrails are defined in `.specify/memory/constitution.md`. Key rules:
-- Every chat response must be routed to one of: general, document-grounded (with citations), web search (with citations), or clarifying question
-- Document-grounded answers require citations: `DocumentName • chunkId • short snippet`; never imply document content without retrieval evidence
-- Web search must not include user document contents or secrets in the query
-- All endpoints require: validation, auth checks, typed errors, and tests
-- DB changes require a migration and rollback plan
-- Integration tests must be gated behind `RUN_INTEGRATION_TESTS=1` and skip gracefully when env vars are missing
+Engineering guardrails are defined in `.specify/memory/constitution.md`. Detailed rules are in `.claude/rules/`.
