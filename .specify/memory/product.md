@@ -1,18 +1,30 @@
 # Product: AI Chatbot
 
-## Target User
+## What This Is
+A small, hosted chatbot application built as a learning project to practice development with AI agents and to explore a modern full-stack workflow.
 
-Developers and knowledge workers who want a private AI chat assistant backed
-by their own documents — without sending those documents to a third-party
-service they don't control.
+It includes:
+- a chat UI with conversation history
+- a basic document upload + ingestion flow to learn RAG (chunking, embeddings, vector search, citations)
 
-## Problem Being Solved
+This project is not positioned as a production SaaS and does not make guarantees about security, privacy, uptime, or correctness.
 
-Generic AI chat tools (ChatGPT, Claude.ai) can answer general questions but
-cannot ground answers in the user's private documents. Uploading sensitive
-documents to those services raises data-privacy concerns. This app provides a
-self-hosted alternative: bring your own OpenAI key, upload your own docs, get
-citations back from your own data.
+## Why It Exists (Developer Goals)
+- Practice scaffolding and iteration with agent-assisted development (SpecKit + Claude Code).
+- Learn and implement RAG end-to-end:
+  - upload → parse → chunk → embed → store → retrieve → answer with citations
+- Gain familiarity with unfamiliar technologies and sharpen my skills with familiar ones. Uses this stack:
+  - Remix + TypeScript + React + Vite
+  - PostgreSQL + pgvector
+  - Prisma
+  - LangChain (or direct OpenAI SDK usage)
+  - Streaming chat responses
+
+## Intended User
+Primarily the developer (me). Secondarily, friends/testers who understand this is an experimental learning app.
+
+## Positioning
+A hosted AI chat assistant that answers questions using your uploaded documents and can use web search for current/external information.
 
 ## Key User Journeys
 
