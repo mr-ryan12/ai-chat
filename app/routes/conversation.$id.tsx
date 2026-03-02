@@ -35,16 +35,16 @@ function isValidConversationsArray(
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  await requireAuth(request);
+  const userId = await requireAuth(request);
   const conversationId = params.id;
 
   try {
     // Call functions directly instead of making fetch requests
     const conversation = conversationId
-      ? await getConversation(conversationId)
+      ? await getConversation(conversationId, userId)
       : null;
 
-    const conversations = await getConversations();
+    const conversations = await getConversations(userId);
 
     return data({
       conversation,
@@ -66,7 +66,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await requireAuth(request);
+  const userId = await requireAuth(request);
   const formData = await request.formData();
   const message = formData.get("message") as string;
   const conversationId = formData.get("conversationId") as string | undefined;
@@ -83,7 +83,7 @@ export async function action({ request }: ActionFunctionArgs) {
       response,
       words,
       conversationId: newConversationId,
-    } = await createChatCompletion(message, conversationId);
+    } = await createChatCompletion(message, conversationId, userId);
 
     // If the conversation ID changed (meaning a new conversation was created),
     // redirect to the new conversation URL

@@ -7,7 +7,7 @@ import { requireAuth } from "~/utils/auth.server";
 import { deleteConversation } from "~/server/utils/apiCalls/deleteConversation";
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  await requireAuth(request);
+  const userId = await requireAuth(request);
 
   const conversationId = params.id;
 
@@ -20,9 +20,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   try {
-    await deleteConversation(conversationId);
+    await deleteConversation(conversationId, userId);
     return data({ success: true });
   } catch (error) {
+    if (error instanceof Error && error.message.toLowerCase().includes("not found")) {
+      return data({ error: "Conversation not found" }, { status: 404 });
+    }
     logger.logError(error, {
       duration: 0,
       path: `/api/conversation/${conversationId}/delete`,

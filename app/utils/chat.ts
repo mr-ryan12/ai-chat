@@ -21,8 +21,9 @@ import { IDatabaseMessage } from "~/types/chat.types";
 
 export async function createChatCompletion(
   message: string,
-  conversationId?: string
-) {
+  conversationId: string | undefined,
+  userId: string
+): Promise<{ response: string; words: string[]; conversationId: string }> {
   try {
     const model = new ChatOpenAI({
       modelName: "gpt-4",
@@ -44,7 +45,7 @@ export async function createChatCompletion(
       }
     }
 
-    let conversation = conversationId ? await getConversation(conversationId) : null;
+    let conversation = conversationId ? await getConversation(conversationId, userId) : null;
 
     const messages = conversation ? conversation.messages.map((msg: IDatabaseMessage) => {
       if (msg.role === "user") {
@@ -121,7 +122,7 @@ export async function createChatCompletion(
 
     // Only create conversation after successful AI response
     if (!conversation) {
-      conversation = await createNewConversation();
+      conversation = await createNewConversation(userId);
     }
 
     // Save the messages

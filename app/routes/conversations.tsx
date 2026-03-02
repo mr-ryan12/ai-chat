@@ -15,9 +15,9 @@ import ConversationSidebar from "~/components/ConversationSidebar";
 import type { Conversation } from "~/types/conversation.types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireAuth(request);
+  const userId = await requireAuth(request);
   try {
-    const conversations = await getConversations();
+    const conversations = await getConversations(userId);
     return data({ conversations });
   } catch (error) {
     logger.logError(error, {

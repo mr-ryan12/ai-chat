@@ -1,14 +1,20 @@
 // Server
 import { prisma } from "../../db.server";
+import type { Conversation, Message } from "@prisma/client";
 
 // Utils
 import { logger } from "../logger";
 
-export async function getConversation(id?: string) {
+type ConversationWithMessages = Conversation & { messages: Message[] };
+
+export async function getConversation(
+  id: string | undefined,
+  userId: string
+): Promise<ConversationWithMessages | null> {
   try {
     if (id) {
-      const conversation = await prisma.conversation.findUnique({
-        where: { id },
+      const conversation = await prisma.conversation.findFirst({
+        where: { id, userId },
         include: { messages: true },
       });
 
@@ -31,10 +37,12 @@ export async function getConversation(id?: string) {
 }
 
 // Separate function for creating new conversations
-export async function createNewConversation() {
+export async function createNewConversation(
+  userId: string
+): Promise<ConversationWithMessages> {
   try {
     const newConversation = await prisma.conversation.create({
-      data: {},
+      data: { userId },
       include: { messages: true },
     });
     return newConversation;

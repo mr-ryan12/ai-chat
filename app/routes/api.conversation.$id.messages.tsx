@@ -3,18 +3,24 @@ import { data, LoaderFunctionArgs } from "@remix-run/node";
 
 // Server
 import { prisma } from "~/server/db.server";
+import { getConversation } from "~/server/utils/apiCalls/getConversation";
 
 // Utils
 import { logger } from "~/server/utils/logger";
 import { requireAuth } from "~/utils/auth.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  await requireAuth(request);
+  const userId = await requireAuth(request);
 
   const conversationId = params.id;
 
   if (!conversationId) {
     return data({ error: "Conversation ID is required" }, { status: 400 });
+  }
+
+  const conversation = await getConversation(conversationId, userId);
+  if (conversation === null) {
+    return data({ error: "Conversation not found" }, { status: 404 });
   }
 
   try {
