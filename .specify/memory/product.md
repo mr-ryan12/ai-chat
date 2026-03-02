@@ -65,8 +65,6 @@ they continue the thread.
 - Tool calls: `search_web` (SerpAPI), `get_time_in_timezone`
 
 **Non-goals / known gaps (as of 2026-03-01)**
-- Multi-user / team workspaces — `Conversation` and `Message` have no `userId`;
-  tenant scoping is not yet implemented (constitution violation, migration pending).
 - Semantic routing — document context is injected only when the message contains
   "document", "text", or "content" (keyword gate, not embedding similarity).
 - Hybrid retrieval — `HybridRetriever` is a stub (returns `[]`); only vector

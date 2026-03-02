@@ -34,10 +34,10 @@
 
 **⚠️ CRITICAL**: No route changes can be made until the service helper signatures are updated here.
 
-- [ ] T004 [P] Update `app/server/utils/apiCalls/getConversations.ts` — add `userId: string` parameter to `getConversations`; add `where: { userId }` to `prisma.conversation.findMany`; update explicit return type to `Promise<ConversationSummary[]>`
-- [ ] T005 [P] Update `app/server/utils/apiCalls/getConversation.ts` — add `userId: string` parameter to `getConversation`; add `userId` to the `findUnique` where clause (`where: { id, userId }`); add `userId: string` parameter to `createNewConversation`; pass `userId` to `prisma.conversation.create({ data: { userId } })`; update explicit return types on both functions
-- [ ] T006 [P] Update `app/server/utils/apiCalls/deleteConversation.ts` — add `userId: string` parameter to `deleteConversation`; add `userId` to the `prisma.conversation.delete` where clause (`where: { id: conversationId, userId }`); update explicit return type to `Promise<{ success: true }>`
-- [ ] T007 Update `app/utils/chat.ts` — add `userId: string` as a required third parameter to `createChatCompletion`; pass `userId` to `createNewConversation(userId)` (line ~124); pass `userId` to `getConversation(conversationId, userId)` (line ~47); update explicit return type
+- [x] T004 [P] Update `app/server/utils/apiCalls/getConversations.ts` — add `userId: string` parameter to `getConversations`; add `where: { userId }` to `prisma.conversation.findMany`; update explicit return type to `Promise<ConversationSummary[]>`
+- [x] T005 [P] Update `app/server/utils/apiCalls/getConversation.ts` — add `userId: string` parameter to `getConversation`; add `userId` to the `findUnique` where clause (`where: { id, userId }`); add `userId: string` parameter to `createNewConversation`; pass `userId` to `prisma.conversation.create({ data: { userId } })`; update explicit return types on both functions
+- [x] T006 [P] Update `app/server/utils/apiCalls/deleteConversation.ts` — add `userId: string` parameter to `deleteConversation`; add `userId` to the `prisma.conversation.delete` where clause (`where: { id: conversationId, userId }`); update explicit return type to `Promise<{ success: true }>`
+- [x] T007 Update `app/utils/chat.ts` — add `userId: string` as a required third parameter to `createChatCompletion`; pass `userId` to `createNewConversation(userId)` (line ~124); pass `userId` to `getConversation(conversationId, userId)` (line ~47); update explicit return type
 
 **Checkpoint**: All four service helpers accept `userId`; TypeScript types updated; `yarn typecheck` passes on these files.
 
@@ -49,9 +49,9 @@
 
 **Independent Test**: Log in as User A and create a conversation. Log in as User B and create a conversation. Each user's sidebar shows only their own conversation. *(Note: requires US2 creation path to also work — addressed in T009/T010 actions below.)*
 
-- [ ] T008 [P] [US1] Update `app/routes/conversations.tsx` loader — change `await requireAuth(request)` to `const userId = await requireAuth(request)`; pass `userId` to `getConversations(userId)`
-- [ ] T009 [US1] Update `app/routes/_index.tsx` loader and action — capture `userId` from `requireAuth` in both; pass to `getConversations(userId)` in loader; pass to `createChatCompletion(message, conversationId, userId)` in action
-- [ ] T010 [US1] Update `app/routes/conversation.$id.tsx` loader — capture `userId` from `requireAuth`; pass to `getConversation(conversationId, userId)` and `getConversations(userId)`
+- [x] T008 [P] [US1] Update `app/routes/conversations.tsx` loader — change `await requireAuth(request)` to `const userId = await requireAuth(request)`; pass `userId` to `getConversations(userId)`
+- [x] T009 [US1] Update `app/routes/_index.tsx` loader and action — capture `userId` from `requireAuth` in both; pass to `getConversations(userId)` in loader; pass to `createChatCompletion(message, conversationId, userId)` in action
+- [x] T010 [US1] Update `app/routes/conversation.$id.tsx` loader — capture `userId` from `requireAuth`; pass to `getConversation(conversationId, userId)` and `getConversations(userId)`
 
 **Checkpoint**: Log in as two different users and verify each sidebar is isolated to their own conversations.
 
@@ -65,7 +65,7 @@
 
 *(The `_index.tsx` action was already updated in T009.)*
 
-- [ ] T011 [US2] Update `app/routes/conversation.$id.tsx` action — capture `userId` from `requireAuth`; pass to `createChatCompletion(message, conversationId, userId)`
+- [x] T011 [US2] Update `app/routes/conversation.$id.tsx` action — capture `userId` from `requireAuth`; pass to `createChatCompletion(message, conversationId, userId)`
 
 **Checkpoint**: Sending a first message from any route creates a conversation owned by the authenticated user. No unowned conversations are created after this point.
 
@@ -77,8 +77,8 @@
 
 **Independent Test**: Log in as User B, send a DELETE or messages GET request for a conversation owned by User A — receive a 404 response with no data leaked.
 
-- [ ] T012 [P] [US3] Update `app/routes/api.conversation.$id.messages.tsx` loader — capture `userId` from `requireAuth`; call `getConversation(conversationId, userId)` to verify ownership; if result is `null`, return `data({ error: "Conversation not found" }, { status: 404 })` immediately; otherwise proceed to fetch messages with the existing `prisma.message.findMany` query
-- [ ] T013 [US3] Update `app/routes/api.conversation.$id.delete.tsx` action — capture `userId` from `requireAuth`; pass to `deleteConversation(conversationId, userId)`; catch Prisma `RecordNotFound` error and return `data({ error: "Conversation not found" }, { status: 404 })`
+- [x] T012 [P] [US3] Update `app/routes/api.conversation.$id.messages.tsx` loader — capture `userId` from `requireAuth`; call `getConversation(conversationId, userId)` to verify ownership; if result is `null`, return `data({ error: "Conversation not found" }, { status: 404 })` immediately; otherwise proceed to fetch messages with the existing `prisma.message.findMany` query
+- [x] T013 [US3] Update `app/routes/api.conversation.$id.delete.tsx` action — capture `userId` from `requireAuth`; pass to `deleteConversation(conversationId, userId)`; catch Prisma `RecordNotFound` error and return `data({ error: "Conversation not found" }, { status: 404 })`
 
 **Checkpoint**: All four conversation-related routes enforce ownership. Cross-user access returns 404 on all paths (sidebar list, message fetch, delete, direct URL load).
 
@@ -88,9 +88,9 @@
 
 **Purpose**: Documentation cleanup and final validation.
 
-- [ ] T014 [P] Remove the "Known gap" language from `.claude/rules/database.md` (remove the bullet "Known gap: `Conversation` and `Message` lack `userId`...") and update `.specify/memory/product.md` Non-goals section to remove the `Conversation`/`Message` userId tenant scoping gap note
-- [ ] T015 [P] Update `.specify/memory/constitution.md` Known Gap comment (sync impact report header) to note that the tenant scoping violation is resolved by this feature
-- [ ] T016 Run `yarn typecheck` and `yarn lint` across the full project; resolve any type errors introduced by the new `userId` parameters
+- [x] T014 [P] Remove the "Known gap" language from `.claude/rules/database.md` (remove the bullet "Known gap: `Conversation` and `Message` lack `userId`...") and update `.specify/memory/product.md` Non-goals section to remove the `Conversation`/`Message` userId tenant scoping gap note
+- [x] T015 [P] Update `.specify/memory/constitution.md` Known Gap comment (sync impact report header) to note that the tenant scoping violation is resolved by this feature
+- [x] T016 Run `yarn typecheck` and `yarn lint` across the full project; resolve any type errors introduced by the new `userId` parameters
 
 ---
 

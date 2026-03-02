@@ -8,7 +8,6 @@ paths:
 
 - All queries must be scoped by `userId` (and `conversationId` where applicable) — no exceptions
 - Tenant scoping must be enforced in a shared access layer (repository/service helpers), not hand-rolled per route
-- Known gap: `Conversation` and `Message` lack `userId` — a migration is required before next release
 - DB changes must include: a migration file, a rollback plan, and a backfill plan if needed
 - Never use `db:push` outside local prototyping — use `yarn migrate:new` for all real changes
 - GIN indexes for `DocumentChunk.metadata` and `.fts` must be created manually in migration SQL
