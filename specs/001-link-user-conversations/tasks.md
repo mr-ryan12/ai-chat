@@ -20,9 +20,9 @@
 
 **⚠️ CRITICAL**: No service or route work can begin until this phase is complete — the Prisma client must reflect the new schema.
 
-- [ ] T001 Update `prisma/schema.prisma` — add `userId String` field and `user User @relation(fields: [userId], references: [id], onDelete: Cascade)` to `Conversation` model; add `conversations Conversation[]` back-relation to `User` model
-- [ ] T002 Run `yarn migrate:new` (migration name: `add_user_id_to_conversation`) to scaffold the migration directory, then replace the auto-generated SQL in the new `prisma/migrations/[timestamp]_add_user_id_to_conversation/migration.sql` with the custom SQL from `specs/001-link-user-conversations/data-model.md` (DELETE FROM Message; DELETE FROM Conversation; ALTER TABLE ADD COLUMN userId NOT NULL; ADD CONSTRAINT FK with CASCADE; CREATE INDEX)
-- [ ] T003 Apply migration and regenerate Prisma client: run `yarn migrate:latest` then `yarn prisma:generate`; confirm no errors
+- [x] T001 Update `prisma/schema.prisma` — add `userId String` field and `user User @relation(fields: [userId], references: [id], onDelete: Cascade)` to `Conversation` model; add `conversations Conversation[]` back-relation to `User` model
+- [x] T002 Run `yarn migrate:new` (migration name: `add_user_id_to_conversation`) to scaffold the migration directory, then replace the auto-generated SQL in the new `prisma/migrations/[timestamp]_add_user_id_to_conversation/migration.sql` with the custom SQL from `specs/001-link-user-conversations/data-model.md` (DELETE FROM Message; DELETE FROM Conversation; ALTER TABLE ADD COLUMN userId NOT NULL; ADD CONSTRAINT FK with CASCADE; CREATE INDEX)
+- [x] T003 Apply migration and regenerate Prisma client: run `yarn migrate:latest` then `yarn prisma:generate`; confirm no errors
 
 **Checkpoint**: `prisma/schema.prisma` contains `userId` on `Conversation`; Prisma client is regenerated; migration applied successfully.
 
