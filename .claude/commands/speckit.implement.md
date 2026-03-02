@@ -103,19 +103,29 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Task details**: ID, description, file paths, parallel markers [P]
    - **Execution flow**: Order and dependency requirements
 
-6. Execute implementation following the task plan:
-   - **Phase-by-phase execution**: Complete each phase before moving to the next
-   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
-   - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
-   - **File-based coordination**: Tasks affecting the same files must run sequentially
-   - **Validation checkpoints**: Verify each phase completion before proceeding
+6. Delegate implementation to the `fullstack-dev` subagent:
 
-7. Implementation execution rules:
-   - **Setup first**: Initialize project structure, dependencies, configuration
-   - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
-   - **Core development**: Implement models, services, CLI commands, endpoints
-   - **Integration work**: Database connections, middleware, logging, external services
-   - **Polish and validation**: Unit tests, performance optimization, documentation
+   **All coding work must be delegated to the `fullstack-dev` subagent.** This agent has the project's Remix, Prisma, TypeScript, and UI/UX conventions loaded as skills and must be used for every task that creates or modifies files. Do not write code directly in this session.
+
+   For each task (or group of parallel tasks [P]), invoke `fullstack-dev` with a self-contained prompt that includes:
+   - The task ID and full description from tasks.md
+   - The specific files to create or modify
+   - A brief summary of what prior tasks have already implemented (for continuity)
+   - Any relevant constraints from spec.md or plan.md that apply to this task
+
+   Orchestration rules enforced by THIS session (not the agent):
+   - **Phase-by-phase**: Complete all tasks in a phase before starting the next
+   - **Sequential dependencies**: Never start a task until its dependencies are marked [X]
+   - **Parallel tasks [P]**: May be delegated in concurrent agent calls
+   - **File conflicts**: Tasks touching the same files must run sequentially even if marked [P]
+   - **Validation checkpoints**: Confirm phase completion before advancing
+
+7. Implementation execution order (pass as context to `fullstack-dev`):
+   - **Setup first**: Project structure, dependencies, configuration
+   - **Tests before code**: Write tests for contracts, entities, and integration scenarios before implementing them
+   - **Core development**: Models, services, utilities, endpoints, routes
+   - **Integration work**: DB connections, middleware, logging, external services
+   - **Polish and validation**: Unit tests, performance, documentation
 
 8. Progress tracking and error handling:
    - Report progress after each completed task
