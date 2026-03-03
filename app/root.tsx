@@ -4,6 +4,8 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteError,
+  isRouteErrorResponse,
 } from "@remix-run/react";
 import type { LinksFunction } from "@remix-run/node";
 import { useState, useEffect, createContext, type ReactNode } from "react";
@@ -74,4 +76,40 @@ export function Layout({ children }: { children: ReactNode }) {
 
 export default function App() {
   return <Outlet />;
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  let status = 500;
+  let message = "An unexpected error occurred.";
+
+  if (isRouteErrorResponse(error)) {
+    status = error.status;
+    message = error.data ?? error.statusText;
+  } else if (error instanceof Error) {
+    message = error.message;
+  }
+
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <Meta />
+        <Links />
+        <title>{status} Error</title>
+      </head>
+      <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <h1 className="text-6xl font-bold text-gray-400">{status}</h1>
+          <p className="text-lg text-gray-600 dark:text-gray-400">{message}</p>
+          <a href="/" className="inline-block text-blue-500 hover:underline">
+            Go home
+          </a>
+        </div>
+        <Scripts />
+      </body>
+    </html>
+  );
 }
