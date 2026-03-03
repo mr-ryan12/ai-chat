@@ -1,3 +1,6 @@
+// Packages
+import { Form } from "@remix-run/react";
+
 // Components
 import ThemeToggle from "./ThemeToggle";
 
@@ -64,6 +67,32 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </span>
             </div>
             <ThemeToggle />
+            <div className="relative group">
+              <Form method="post" action="/api/logout">
+                <button
+                  type="submit"
+                  className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  aria-label="Log out"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                </button>
+              </Form>
+              <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-700 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                Log out
+              </span>
+            </div>
           </div>
         </div>
       </div>
