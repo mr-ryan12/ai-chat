@@ -4,9 +4,18 @@ import { prisma } from "../../db.server";
 // Utils
 import { logger } from "../logger";
 
-export async function getConversations() {
+export type ConversationSummary = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+};
+
+export async function getConversations(userId: string): Promise<ConversationSummary[]> {
   try {
     const conversations = await prisma.conversation.findMany({
+      where: { userId },
       select: {
         id: true,
         title: true,

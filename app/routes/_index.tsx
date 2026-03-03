@@ -16,11 +16,11 @@ import { requireAuth } from "~/utils/auth.server";
 import { hasStatus } from "~/server/utils/loggerHelpers";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireAuth(request);
+  const userId = await requireAuth(request);
 
   try {
     // Call the function directly instead of making a fetch request
-    const conversations = await getConversations();
+    const conversations = await getConversations(userId);
     return { conversations };
   } catch (error) {
     console.error("Error loading conversations:", error);
@@ -29,8 +29,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await requireAuth(request);
-  
+  const userId = await requireAuth(request);
+
   const formData = await request.formData();
   const message = formData.get("message") as string;
   const conversationId = formData.get("conversationId") as string | undefined;
@@ -44,7 +44,7 @@ export async function action({ request }: ActionFunctionArgs) {
       response,
       words,
       conversationId: newConversationId,
-    } = await createChatCompletion(message, conversationId);
+    } = await createChatCompletion(message, conversationId, userId);
 
     return data({
       message,

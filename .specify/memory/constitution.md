@@ -16,8 +16,7 @@ Templates reviewed:
 Follow-up TODOs:
   - TODO(HYBRID_RETRIEVER): Prior constitution noted HybridRetriever is a stub — Principle V references this as a known gap.
     Implement or remove stub before next minor amendment.
-  - TODO(TENANT_SCOPING): Conversation and Message models lack userId — violates Security & Privacy (Tenant Isolation).
-    Must be addressed in a migration before next constitution amendment.
+  - RESOLVED(TENANT_SCOPING, 001-link-user-conversations): Conversation.userId added via migration — tenant isolation now enforced at service layer.
 -->
 
 # OpenAI Playground Constitution
@@ -140,8 +139,7 @@ Token/cost controls (mandatory):
 - **Auth required**: Any route that reads or writes user data MUST enforce
   authentication via `requireAuth(request)`.
 - **Tenant isolation**: All document, chunk, and message queries MUST be
-  scoped to the authenticated user. (Known gap: `Conversation` and `Message`
-  lack `userId` — migration required before next release.)
+  scoped to the authenticated user. (Resolved via 001-link-user-conversations: `Conversation.userId` added — tenant scoping now enforced at service layer.)
 - **Upload safety**: File type and size MUST be validated server-side.
   Filenames MUST be sanitised. Unsupported types MUST be rejected.
 - **Rate limiting / abuse control**: Expensive endpoints (upload, ingestion,
