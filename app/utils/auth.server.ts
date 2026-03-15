@@ -1,6 +1,7 @@
 import { createCookieSessionStorage, redirect } from "@remix-run/node";
-import bcrypt from "bcryptjs";
 import { prisma } from "~/server/db.server";
+import { logger } from "~/server/utils/logger";
+import type { User } from "@prisma/client";
 
 const sessionStorage = createCookieSessionStorage({
   cookie: {
@@ -9,11 +10,11 @@ const sessionStorage = createCookieSessionStorage({
     secure: process.env.NODE_ENV === "production",
     secrets: [process.env.SESSION_SECRET!],
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    maxAge: 60 * 60 * 24 * 365, // 1 year
   },
 });
 
-export async function requireAuth(request: Request) {
+export async function requireAuth(request: Request): Promise<string> {
   const session = await sessionStorage.getSession(
     request.headers.get("Cookie"),
   );
@@ -25,26 +26,24 @@ export async function requireAuth(request: Request) {
   return userId;
 }
 
-export async function login(username: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { username } });
-
-  if (!user) {
-    return null;
+export async function findOrCreateUser(username: string): Promise<User> {
+  try {
+    const user = await prisma.user.upsert({
+      where: { username },
+      update: {},
+      create: { username },
+    });
+    return user;
+  } catch (error) {
+    logger.logError(error, { path: "/login", method: "POST", duration: 0 });
+    throw error;
   }
-
-  const isValid = await bcrypt.compare(password, user.password);
-
-  if (!isValid) {
-    return null;
-  }
-
-  return user;
 }
 
 export async function createUserSession(
   userId: string,
   redirectTo: string = "/",
-) {
+): Promise<Response> {
   const session = await sessionStorage.getSession();
   session.set("userId", userId);
 
@@ -55,7 +54,7 @@ export async function createUserSession(
   });
 }
 
-export async function logout(request: Request) {
+export async function logout(request: Request): Promise<Response> {
   const session = await sessionStorage.getSession(
     request.headers.get("Cookie"),
   );
