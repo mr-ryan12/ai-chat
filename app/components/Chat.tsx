@@ -201,7 +201,7 @@ export default function Chat({
               </svg>
             </div>
             <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              Welcome to AI Chatbot
+              Welcome to ThreadMind
             </h3>
             <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 max-w-md mx-auto px-4">
               Start a conversation by typing a message below. I can help you

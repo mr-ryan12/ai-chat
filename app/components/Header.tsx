@@ -52,7 +52,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             </div>
             <div>
               <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                AI Chatbot
+                ThreadMind
               </h1>
               <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
                 Powered by OpenAI
