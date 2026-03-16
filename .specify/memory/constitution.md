@@ -19,7 +19,7 @@ Follow-up TODOs:
   - RESOLVED(TENANT_SCOPING, 001-link-user-conversations): Conversation.userId added via migration — tenant isolation now enforced at service layer.
 -->
 
-# OpenAI Playground Constitution
+# ThreadMind Constitution
 
 This document defines non-negotiable engineering and product guardrails.
 Specs and implementation MUST comply. The constitution supersedes all other

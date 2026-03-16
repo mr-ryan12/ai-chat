@@ -1,4 +1,4 @@
-# Product: AI Chatbot
+# Product: ThreadMind
 
 ## What This Is
 A small, hosted chatbot application built as a learning project to practice development with AI agents and to explore a modern full-stack workflow.

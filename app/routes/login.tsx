@@ -8,6 +8,7 @@ import {
   requireAuth,
 } from "~/utils/auth.server";
 import { logger } from "~/server/utils/logger";
+import ThreadMindLogo from "~/components/ThreadMindLogo";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
@@ -47,17 +48,18 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       <div className="max-w-md w-full px-4 space-y-8">
         <div>
-          <h1 className="mt-6 text-center text-3xl font-extrabold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-            AI Playground
+          <div className="flex justify-center">
+            <ThreadMindLogo size={56} />
+          </div>
+          <h1 className="text-center text-3xl font-extrabold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+            ThreadMind
           </h1>
           <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
             Enter a username to get started — no password required.
-            <br />
-            Use the same username on any device to pick up where you left off.
           </p>
         </div>
 
-        <Form method="post" className="mt-8 space-y-6">
+        <Form method="post" className="mt-8 space-y-6" noValidate>
           <div className="card p-6 space-y-4">
             <div>
               <label
@@ -79,9 +81,45 @@ export default function Login() {
             </div>
 
             {actionData?.error && (
-              <p className="text-sm text-red-600 dark:text-red-400">
-                {actionData.error}
-              </p>
+              <div
+                role="alert"
+                className="flex items-start gap-2.5 pl-3 pr-4 py-2.5 rounded-md border-l-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30"
+                style={{
+                  animation: "tm-error-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both",
+                }}
+              >
+                <style>{`
+                  @keyframes tm-error-in {
+                    from { opacity: 0; transform: translateX(-6px); }
+                    to   { opacity: 1; transform: translateX(0); }
+                  }
+                `}</style>
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 15 15"
+                  fill="none"
+                  className="shrink-0 mt-px text-amber-500"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M7.5 1L14 13H1L7.5 1Z"
+                    stroke="currentColor"
+                    strokeWidth="1.25"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M7.5 6V8.5"
+                    stroke="currentColor"
+                    strokeWidth="1.25"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="7.5" cy="10.5" r="0.75" fill="currentColor" />
+                </svg>
+                <p className="text-sm text-amber-800 dark:text-amber-300 leading-snug">
+                  {actionData.error}
+                </p>
+              </div>
             )}
           </div>
 

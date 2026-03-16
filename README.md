@@ -1,7 +1,7 @@
-# OpenAI Playground
+# ThreadMind
 
 A Remix-based chat application with document ingestion and vector search capabilities using OpenAI and PostgreSQL with pgvector.  
-View the [deployment here](https://ai-chat-production-aae2.up.railway.app/)
+View the [deployment here](https://threadmind.dev)
 
 ## Prerequisites
 

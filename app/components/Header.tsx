@@ -3,6 +3,7 @@ import { Form } from "@remix-run/react";
 
 // Components
 import ThemeToggle from "./ThemeToggle";
+import ThreadMindLogo from "./ThreadMindLogo";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -35,28 +36,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </svg>
             </button>
             
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <svg
-                className="w-4 h-4 md:w-6 md:h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
-            </div>
+            <ThreadMindLogo size={32} className="md:hidden" />
+            <ThreadMindLogo size={40} className="hidden md:block" />
             <div>
               <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                AI Chatbot
+                ThreadMind
               </h1>
-              <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
-                Powered by OpenAI
-              </p>
             </div>
           </div>
           <div className="flex items-center space-x-2 md:space-x-4">
