@@ -8,6 +8,7 @@ import {
   requireAuth,
 } from "~/utils/auth.server";
 import { logger } from "~/server/utils/logger";
+import ThreadMindLogo from "~/components/ThreadMindLogo";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
@@ -47,13 +48,14 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       <div className="max-w-md w-full px-4 space-y-8">
         <div>
+          <div className="flex justify-center mb-4">
+            <ThreadMindLogo size={56} />
+          </div>
           <h1 className="mt-6 text-center text-3xl font-extrabold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
             ThreadMind
           </h1>
           <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
             Enter a username to get started — no password required.
-            <br />
-            Use the same username on any device to pick up where you left off.
           </p>
         </div>
 
