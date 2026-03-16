@@ -7,10 +7,21 @@ import {
   useRouteError,
   isRouteErrorResponse,
 } from "@remix-run/react";
-import type { LinksFunction } from "@remix-run/node";
+import type { LinksFunction, MetaFunction } from "@remix-run/node";
 import { useState, useEffect, createContext, type ReactNode } from "react";
 
 import "./tailwind.css";
+
+export const meta: MetaFunction = () => [
+  { title: "ThreadMind" },
+  { name: "description", content: "AI chat grounded in your documents and the web." },
+  { property: "og:type", content: "website" },
+  { property: "og:title", content: "ThreadMind" },
+  { property: "og:description", content: "AI chat grounded in your documents and the web." },
+  { name: "twitter:card", content: "summary" },
+  { name: "twitter:title", content: "ThreadMind" },
+  { name: "twitter:description", content: "AI chat grounded in your documents and the web." },
+];
 
 export const links: LinksFunction = () => [
   { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
