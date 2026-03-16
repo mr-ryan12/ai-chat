@@ -18,6 +18,7 @@ export const meta: MetaFunction = () => [
   { property: "og:type", content: "website" },
   { property: "og:title", content: "ThreadMind" },
   { property: "og:description", content: "AI chat grounded in your documents and the web." },
+  { property: "og:image", content: "https://threadmind.dev/og-image.png" },
   { name: "twitter:card", content: "summary" },
   { name: "twitter:title", content: "ThreadMind" },
   { name: "twitter:description", content: "AI chat grounded in your documents and the web." },
