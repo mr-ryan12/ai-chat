@@ -20,7 +20,7 @@ export async function getConversation(
 
       // Return null if conversation doesn't exist instead of creating a new one
       if (!conversation) {
-        console.log(`Conversation with id ${id} not found`);
+        logger.logRequest({ method: "GET", path: `/conversation/${id}`, duration: 0, status: 404 });
         return null;
       }
 
@@ -30,7 +30,6 @@ export async function getConversation(
     // If no id provided, return null (don't auto-create)
     return null;
   } catch (error) {
-    console.error("Error in getConversation:", error);
     logger.logError(error, { duration: 0, path: "/", method: "GET" });
     throw error;
   }
@@ -47,7 +46,6 @@ export async function createNewConversation(
     });
     return newConversation;
   } catch (error) {
-    console.error("Error creating new conversation:", error);
     logger.logError(error, { duration: 0, path: "/", method: "POST" });
     throw error;
   }

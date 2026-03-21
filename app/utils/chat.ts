@@ -10,6 +10,7 @@ import {
 import { systemMessage } from "~/server/utils/systemMessage";
 import { queryDocuments } from "../server/utils/documentService";
 import { toolImplementations, tools } from "../server/utils/tools";
+import { logger } from "~/server/utils/logger";
 
 // Server
 import { prisma } from "../server/db.server";
@@ -40,7 +41,7 @@ export async function createChatCompletion(
       try {
         documentContext = await queryDocuments(message, userId);
       } catch (docError) {
-        console.error("Error querying documents:", docError);
+        logger.logError(docError, { method: "POST", path: "/chat", duration: 0 });
         // Continue without document context
       }
     }
@@ -73,7 +74,7 @@ export async function createChatCompletion(
         tool_choice: "auto",
       });
     } catch (modelError) {
-      console.error("Error invoking model:", modelError);
+      logger.logError(modelError, { method: "POST", path: "/chat", duration: 0 });
       throw new Error("Failed to get response from AI model");
     }
 
@@ -115,7 +116,7 @@ export async function createChatCompletion(
           "I'm sorry, I couldn't generate a response at this time.";
       }
     } catch (e) {
-      console.error("Error processing response:", e);
+      logger.logError(e, { method: "POST", path: "/chat", duration: 0 });
       fullResponse =
         "I encountered an error while processing your request. Please try again.";
     }
@@ -142,7 +143,7 @@ export async function createChatCompletion(
         ],
       });
     } catch (dbError) {
-      console.error("Error saving messages to database:", dbError);
+      logger.logError(dbError, { method: "POST", path: "/chat", duration: 0 });
       throw new Error("Failed to save conversation to database");
     }
 
@@ -151,7 +152,7 @@ export async function createChatCompletion(
       try {
         await updateConversationTitle(conversation.id);
       } catch (titleError) {
-        console.error("Error updating conversation title:", titleError);
+        logger.logError(titleError, { method: "POST", path: "/chat", duration: 0 });
         // Don't throw here, as the main conversation was saved
       }
     }
@@ -164,7 +165,7 @@ export async function createChatCompletion(
       conversationId: conversation.id,
     };
   } catch (error) {
-    console.error("Error in createChatCompletion:", error);
+    logger.logError(error, { method: "POST", path: "/chat", duration: 0 });
     throw error; // Re-throw the original error instead of wrapping it
   }
 }

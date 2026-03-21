@@ -23,7 +23,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const conversations = await getConversations(userId);
     return { conversations };
   } catch (error) {
-    console.error("Error loading conversations:", error);
+    logger.logError(error, { method: "GET", path: "/", duration: 0 });
     return { conversations: [] };
   }
 }

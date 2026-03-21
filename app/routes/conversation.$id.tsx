@@ -104,11 +104,7 @@ export async function action({ request }: ActionFunctionArgs) {
       conversationId: newConversationId,
     });
   } catch (error) {
-    console.error("Chat error details:", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      error,
-    });
+    logger.logError(error, { method: "POST", path: `/conversation`, duration: 0 });
     return data(
       { error: "Failed to process message", response: "", words: [] },
       { status: 500 },

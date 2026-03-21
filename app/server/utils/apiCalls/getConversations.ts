@@ -40,7 +40,6 @@ export async function getConversations(userId: string): Promise<ConversationSumm
       messageCount: conv._count.messages,
     }));
   } catch (error) {
-    console.error("Error in getConversations:", error);
     logger.logError(error, {
       duration: 0,
       path: "/conversations",
