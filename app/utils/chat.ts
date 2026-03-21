@@ -157,7 +157,7 @@ export async function createChatCompletion(
       }
     }
 
-    const words = fullResponse.split(/\s+/);
+    const words = fullResponse.split(" ");
 
     return {
       response: fullResponse,
