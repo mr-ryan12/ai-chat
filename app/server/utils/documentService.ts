@@ -12,8 +12,9 @@ const embeddings = new OpenAIEmbeddings();
 
 export async function ingestDocument(
   filePath: string,
+  userId: string,
   metadata: Record<string, unknown> = {}
-) {
+): Promise<void> {
   // Read the document
   const text = await fs.readFile(filePath, "utf-8");
 
@@ -29,13 +30,16 @@ export async function ingestDocument(
 
   // Store document record
   const documentId = uuid();
+  const contentHash = typeof metadata.contentHash === "string" ? metadata.contentHash : null;
   await prisma.$executeRawUnsafe(
     `
-    INSERT INTO "Document" (id, title, embedding, metadata)
-    VALUES ($1, $2, $3::vector, $4::jsonb)
+    INSERT INTO "Document" (id, title, "userId", "contentHash", embedding, metadata)
+    VALUES ($1, $2, $3, $4, $5::vector, $6::jsonb)
     `,
     documentId,
     metadata.title || filePath,
+    userId,
+    contentHash,
     docEmbedding,
     JSON.stringify(metadata)
   );
@@ -67,24 +71,30 @@ export async function ingestDocument(
   }
 }
 
-export async function queryDocuments(query: string): Promise<string> {
+export async function queryDocuments(query: string, userId: string): Promise<string> {
   // Generate embedding for the query
   const queryEmbedding = await embeddings.embedQuery(query);
 
-  // Find similar chunks using vector similarity search
+  // Find similar chunks scoped to the authenticated user via the Document relation
+  // DISTINCT ON (content) prevents duplicate chunks from multiple ingestions
   const chunks = await prisma.$queryRaw<DocumentChunk[]>`
-    SELECT content, embedding <-> ${queryEmbedding}::vector as distance
-    FROM "DocumentChunk"
-    ORDER BY distance ASC
-    LIMIT 3
+    SELECT DISTINCT ON (dc.content) dc.content, dc.embedding <-> ${queryEmbedding}::vector AS distance
+    FROM "DocumentChunk" dc
+    JOIN "Document" d ON dc."documentId" = d.id
+    WHERE d."userId" = ${userId}
+      AND dc.embedding <-> ${queryEmbedding}::vector < 0.85
+    ORDER BY dc.content, distance ASC
   `;
 
+  // Re-sort by distance after dedup and take top 5
+  chunks.sort((a, b) => (a?.distance || 0) - (b?.distance || 0));
+  const topChunks = chunks.slice(0, 5);
   // Format the response
-  if (chunks.length === 0) {
+  if (topChunks.length === 0) {
     return "I couldn't find any relevant content in the documents.";
   }
 
-  return chunks.map((chunk) => chunk.content).join("\n\n");
+  return topChunks.map((chunk) => chunk.content).join("\n\n");
 }
 
 // HybridRetriever stub for agentic retrieval

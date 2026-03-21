@@ -9,9 +9,10 @@ import { ingestDocument } from "../server/utils/documentService";
 import { logger } from "../server/utils/logger";
 import { requireAuth } from "~/utils/auth.server";
 import { extractTextFromFile } from "../utils/extractTextFromFile";
+import { prisma } from "~/server/db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  await requireAuth(request);
+  const userId = await requireAuth(request);
 
   logger.logRequest({
     method: request.method,
@@ -46,13 +47,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       mimetype,
     });
 
+    // Check for duplicate upload via content hash
+    const contentHash = crypto.createHash("sha256").update(text).digest("hex");
+    const existing = await prisma.document.findFirst({
+      where: { userId, contentHash },
+      select: { id: true },
+    });
+
+    if (existing) {
+      return data(
+        { error: "This document has already been uploaded." },
+        { status: 409 },
+      );
+    }
+
     // Generate secure filename to prevent path traversal
     const safeFilename = crypto.randomUUID() + ".txt";
     const tempTextPath = path.join("/tmp", safeFilename);
 
     try {
       await fs.writeFile(tempTextPath, text, "utf-8");
-      await ingestDocument(tempTextPath);
+      await ingestDocument(tempTextPath, userId, { title: originalname, contentHash });
     } finally {
       // Always cleanup temp file
       try {

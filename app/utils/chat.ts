@@ -38,7 +38,7 @@ export async function createChatCompletion(
       message.toLowerCase().includes("content")
     ) {
       try {
-        documentContext = await queryDocuments(message);
+        documentContext = await queryDocuments(message, userId);
       } catch (docError) {
         console.error("Error querying documents:", docError);
         // Continue without document context
