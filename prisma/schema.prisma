@@ -20,6 +20,7 @@ model User {
   username      String         @unique
   createdAt     DateTime       @default(now())
   conversations Conversation[]
+  documents     Document[]
 }
 
 model Conversation {
@@ -30,6 +31,8 @@ model Conversation {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   messages  Message[]
+
+  @@index([userId])
 }
 
 model Message {
@@ -42,11 +45,16 @@ model Message {
 }
 
 model Document {
-  id        String                      @id @default(cuid())
-  title     String?
-  embedding Unsupported("vector(1536)")
-  metadata  Json?
-  chunks    DocumentChunk[]
+  id          String                      @id @default(cuid())
+  title       String?
+  userId      String
+  user        User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentHash String?
+  embedding   Unsupported("vector(1536)")
+  metadata    Json?
+  chunks      DocumentChunk[]
+
+  @@unique([userId, contentHash])
 }
 
 model DocumentChunk {
