@@ -23,17 +23,22 @@ const pinoLogger = pino({
 
 class Logger {
   logRequest({ method, path, duration, status }: ILogRequest) {
-    pinoLogger.info(
-      {
-        level: "INFO",
-        method,
-        duration,
-        path: getPath(path),
-        service: getService(path),
-        status,
-      },
-      `HTTP ${status ? "response" : "request"} successful`
-    );
+    const isError = status && status >= 400;
+    const message = `HTTP ${status ? `response ${isError ? "error" : "successful"}` : "request sent"}`;
+    const payload = {
+      level: isError ? "WARN" : "INFO",
+      method,
+      duration,
+      path: getPath(path),
+      service: getService(path),
+      status,
+    };
+
+    if (isError) {
+      pinoLogger.warn(payload, message);
+    } else {
+      pinoLogger.info(payload, message);
+    }
   }
 
   logError(error: unknown, context?: Partial<ILogRequest>) {

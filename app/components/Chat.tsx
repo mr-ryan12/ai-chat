@@ -170,7 +170,8 @@ export default function Chat({
       if (res.ok) {
         setUploadMessage("File uploaded and ingested successfully!");
       } else {
-        setUploadMessage("Upload failed");
+        const body = await res.json().catch(() => null);
+        setUploadMessage(body?.error ?? "Upload failed");
       }
     } catch (err) {
       console.error(err);
@@ -274,11 +275,11 @@ export default function Chat({
 
         {streamingResponse && (
           <div className="flex justify-start">
-            <div className="message-assistant p-4 shadow-sm max-w-[80%]">
-              <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="message-assistant max-w-[85%] md:max-w-[80%] p-3 md:p-4 shadow-sm">
+              <div className="flex items-start space-x-2 md:space-x-3">
+                <div className="w-6 h-6 md:w-8 md:h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                   <svg
-                    className="w-4 h-4 text-white"
+                    className="w-3 h-3 md:w-4 md:h-4 text-white"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -292,10 +293,10 @@ export default function Chat({
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  <div className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                     AI Assistant
                   </div>
-                  <div className="text-sm leading-relaxed">
+                  <div className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
                     {streamingResponse}
                     <span className="inline-block w-2 h-4 bg-blue-500 dark:bg-blue-400 ml-1 animate-pulse"></span>
                   </div>
@@ -307,11 +308,11 @@ export default function Chat({
 
         {isSubmitting && !streamingResponse && (
           <div className="flex justify-start">
-            <div className="message-assistant p-4 shadow-sm max-w-[80%]">
-              <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="message-assistant max-w-[85%] md:max-w-[80%] p-3 md:p-4 shadow-sm">
+              <div className="flex items-start space-x-2 md:space-x-3">
+                <div className="w-6 h-6 md:w-8 md:h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                   <svg
-                    className="w-4 h-4 text-white animate-spin"
+                    className="w-3 h-3 md:w-4 md:h-4 text-white animate-spin"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -325,10 +326,10 @@ export default function Chat({
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  <div className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                     AI Assistant
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm md:text-base text-gray-600 dark:text-gray-400">
                     Thinking...
                   </div>
                 </div>
