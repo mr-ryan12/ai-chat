@@ -150,7 +150,7 @@ export async function createChatCompletion(
     // Update conversation title if this is the first message
     if (conversation.messages.length === 0) {
       try {
-        await updateConversationTitle(conversation.id);
+        await updateConversationTitle(conversation.id, userId);
       } catch (titleError) {
         logger.logError(titleError, { method: "POST", path: "/chat", duration: 0 });
         // Don't throw here, as the main conversation was saved
