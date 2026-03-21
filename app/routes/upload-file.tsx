@@ -1,5 +1,5 @@
 // Packages
-import { data, ActionFunctionArgs } from "@remix-run/node";
+import { ActionFunctionArgs } from "@remix-run/node";
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
@@ -9,9 +9,10 @@ import { ingestDocument } from "../server/utils/documentService";
 import { logger } from "../server/utils/logger";
 import { requireAuth } from "~/utils/auth.server";
 import { extractTextFromFile } from "../utils/extractTextFromFile";
+import { prisma } from "~/server/db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  await requireAuth(request);
+  const userId = await requireAuth(request);
 
   logger.logRequest({
     method: request.method,
@@ -33,7 +34,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         status: 400,
         service: "INTERNAL",
       });
-      return data({ error: "No file uploaded" }, { status: 400 });
+      return Response.json({ error: "No file uploaded" }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -46,13 +47,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       mimetype,
     });
 
+    // Check for duplicate upload via content hash
+    const contentHash = crypto.createHash("sha256").update(text).digest("hex");
+    const existing = await prisma.document.findFirst({
+      where: { userId, contentHash },
+      select: { id: true },
+    });
+    if (existing) {
+      return Response.json(
+        { error: "This document has already been uploaded." },
+        { status: 409 },
+      );
+    }
+
     // Generate secure filename to prevent path traversal
     const safeFilename = crypto.randomUUID() + ".txt";
     const tempTextPath = path.join("/tmp", safeFilename);
 
     try {
       await fs.writeFile(tempTextPath, text, "utf-8");
-      await ingestDocument(tempTextPath);
+      await ingestDocument(tempTextPath, userId, { title: originalname, contentHash });
     } finally {
       // Always cleanup temp file
       try {
@@ -76,7 +90,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       service: "INTERNAL",
     });
 
-    return data({ success: true });
+    return Response.json({ success: true });
   } catch (error) {
     logger.logError(error, {
       method: request.method,
@@ -85,13 +99,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       status: 500,
       service: "INTERNAL",
     });
-    return data(
+    return Response.json(
       { error: error instanceof Error ? error.message : String(error) },
       { status: 500 },
     );
   }
 };
-
-export default function UploadFile() {
-  return null;
-}

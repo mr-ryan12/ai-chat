@@ -101,7 +101,7 @@ export default function ConversationSidebar({
       }`}
     >
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           {!isCollapsed && (
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -132,7 +132,8 @@ export default function ConversationSidebar({
             )}
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               <svg
                 className="w-4 h-4 text-gray-600 dark:text-gray-400"
@@ -189,6 +190,7 @@ export default function ConversationSidebar({
                       ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
                       : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   }`}
+                  aria-current={currentConversationId === conversation.id ? "page" : undefined}
                 >
                   {isCollapsed ? (
                     <div className="flex flex-col items-center">
@@ -224,7 +226,7 @@ export default function ConversationSidebar({
                               handleDeleteClick(e, conversation.id)
                             }
                             className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition-all duration-200"
-                            title="Delete conversation"
+                            aria-label={`Delete conversation: ${truncateTitle(conversation.title, 20)}`}
                           >
                             {deletingConversationId === conversation.id ? (
                               <svg
@@ -267,7 +269,11 @@ export default function ConversationSidebar({
 
                 {/* Delete Confirmation Dialog */}
                 {showDeleteConfirm === conversation.id && !isCollapsed && (
-                  <div className="absolute top-0 left-0 right-0 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-lg z-10">
+                  <div
+                    role="dialog"
+                    aria-label={`Delete conversation: ${truncateTitle(conversation.title, 20)}`}
+                    className="absolute top-0 left-0 right-0 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-lg z-10"
+                  >
                     <p className="text-sm text-gray-900 dark:text-gray-100 mb-3">
                       Delete &ldquo;{truncateTitle(conversation.title, 20)}
                       &rdquo;?
@@ -275,13 +281,13 @@ export default function ConversationSidebar({
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleDeleteConfirm(conversation.id)}
-                        className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
+                        className="px-3 py-1 bg-red-500 dark:bg-red-600 text-white text-xs rounded hover:bg-red-600 dark:hover:bg-red-700 transition-colors duration-200"
                       >
                         Delete
                       </button>
                       <button
                         onClick={handleDeleteCancel}
-                        className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                        className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200"
                       >
                         Cancel
                       </button>

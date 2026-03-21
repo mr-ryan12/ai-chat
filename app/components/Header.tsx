@@ -18,7 +18,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             {/* Mobile Menu Button */}
             <button
               onClick={onMenuClick}
-              className="md:hidden p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className="md:hidden p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
               aria-label="Toggle menu"
             >
               <svg
@@ -46,8 +46,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </div>
           <div className="flex items-center space-x-2 md:space-x-4">
             <div className="hidden sm:block text-sm text-gray-600 dark:text-gray-400">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                <span className="w-2 h-2 bg-green-400 rounded-full mr-1.5"></span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" aria-label="Status: Online">
+                <span className="w-2 h-2 bg-green-400 rounded-full mr-1.5" aria-hidden="true"></span>
                 Online
               </span>
             </div>
@@ -55,7 +55,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Form method="post" action="/api/logout">
               <button
                 type="submit"
-                className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
                 aria-label="Log out"
               >
                 <svg

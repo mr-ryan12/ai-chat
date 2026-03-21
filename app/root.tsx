@@ -116,9 +116,9 @@ export function ErrorBoundary() {
       </head>
       <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
-          <h1 className="text-6xl font-bold text-gray-400">{status}</h1>
+          <h1 className="text-6xl font-bold text-gray-300 dark:text-gray-600">{status}</h1>
           <p className="text-lg text-gray-600 dark:text-gray-400">{message}</p>
-          <a href="/" className="inline-block text-blue-500 hover:underline">
+          <a href="/" className="inline-block text-blue-500 dark:text-blue-400 hover:underline transition-colors duration-200">
             Go home
           </a>
         </div>

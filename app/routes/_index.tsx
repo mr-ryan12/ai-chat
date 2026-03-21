@@ -23,7 +23,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const conversations = await getConversations(userId);
     return { conversations };
   } catch (error) {
-    console.error("Error loading conversations:", error);
+    logger.logError(error);
     return { conversations: [] };
   }
 }
@@ -95,9 +95,10 @@ export default function Index() {
       <div className="flex h-[calc(100vh-64px)] md:h-[calc(100vh-85px)] relative">
         {/* Mobile Sidebar Overlay */}
         {isMobileSidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          <div
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => setIsMobileSidebarOpen(false)}
+            aria-hidden="true"
           />
         )}
         

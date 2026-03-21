@@ -52,11 +52,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       conversationId,
     });
   } catch (error) {
-    logger.logError(error, {
-      duration: 0,
-      path: `/conversation/${conversationId}`,
-      method: "GET",
-    });
+    logger.logError(error);
     return data({
       conversation: null,
       conversations: [],
@@ -104,11 +100,7 @@ export async function action({ request }: ActionFunctionArgs) {
       conversationId: newConversationId,
     });
   } catch (error) {
-    console.error("Chat error details:", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      error,
-    });
+    logger.logError(error);
     return data(
       { error: "Failed to process message", response: "", words: [] },
       { status: 500 },
@@ -159,9 +151,10 @@ export default function ConversationPage() {
       <div className="flex h-[calc(100vh-64px)] md:h-[calc(100vh-85px)] relative">
         {/* Mobile Sidebar Overlay */}
         {isMobileSidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          <div
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => setIsMobileSidebarOpen(false)}
+            aria-hidden="true"
           />
         )}
         

@@ -82,9 +82,29 @@
     .mobile-safe-area {
       padding-bottom: env(safe-area-inset-bottom);
     }
-    
+
     .mobile-scroll {
       -webkit-overflow-scrolling: touch;
     }
+  }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes error-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@layer utilities {
+  .animate-fade-out {
+    animation: fade-out 0.5s ease-out 1.5s forwards;
+  }
+
+  .animate-error-in {
+    animation: error-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 }

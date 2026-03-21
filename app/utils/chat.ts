@@ -10,6 +10,7 @@ import {
 import { systemMessage } from "~/server/utils/systemMessage";
 import { queryDocuments } from "../server/utils/documentService";
 import { toolImplementations, tools } from "../server/utils/tools";
+import { logger } from "~/server/utils/logger";
 
 // Server
 import { prisma } from "../server/db.server";
@@ -38,9 +39,9 @@ export async function createChatCompletion(
       message.toLowerCase().includes("content")
     ) {
       try {
-        documentContext = await queryDocuments(message);
+        documentContext = await queryDocuments(message, userId);
       } catch (docError) {
-        console.error("Error querying documents:", docError);
+        logger.logError(docError);
         // Continue without document context
       }
     }
@@ -73,7 +74,7 @@ export async function createChatCompletion(
         tool_choice: "auto",
       });
     } catch (modelError) {
-      console.error("Error invoking model:", modelError);
+      logger.logError(modelError);
       throw new Error("Failed to get response from AI model");
     }
 
@@ -115,7 +116,7 @@ export async function createChatCompletion(
           "I'm sorry, I couldn't generate a response at this time.";
       }
     } catch (e) {
-      console.error("Error processing response:", e);
+      logger.logError(e);
       fullResponse =
         "I encountered an error while processing your request. Please try again.";
     }
@@ -142,21 +143,21 @@ export async function createChatCompletion(
         ],
       });
     } catch (dbError) {
-      console.error("Error saving messages to database:", dbError);
+      logger.logError(dbError);
       throw new Error("Failed to save conversation to database");
     }
 
     // Update conversation title if this is the first message
     if (conversation.messages.length === 0) {
       try {
-        await updateConversationTitle(conversation.id);
+        await updateConversationTitle(conversation.id, userId);
       } catch (titleError) {
-        console.error("Error updating conversation title:", titleError);
+        logger.logError(titleError);
         // Don't throw here, as the main conversation was saved
       }
     }
 
-    const words = fullResponse.split(/\s+/);
+    const words = fullResponse.split(" ");
 
     return {
       response: fullResponse,
@@ -164,7 +165,7 @@ export async function createChatCompletion(
       conversationId: conversation.id,
     };
   } catch (error) {
-    console.error("Error in createChatCompletion:", error);
+    logger.logError(error);
     throw error; // Re-throw the original error instead of wrapping it
   }
 }

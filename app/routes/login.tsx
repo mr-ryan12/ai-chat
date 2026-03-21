@@ -31,7 +31,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const user = await findOrCreateUser(username);
     return createUserSession(user.id);
   } catch (error) {
-    logger.logError(error, { path: "/login", method: "POST", duration: 0 });
+    logger.logError(error);
     return data(
       { error: "Something went wrong. Please try again." },
       { status: 500 },
@@ -83,23 +83,14 @@ export default function Login() {
             {actionData?.error && (
               <div
                 role="alert"
-                className="flex items-start gap-2.5 pl-3 pr-4 py-2.5 rounded-md border-l-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30"
-                style={{
-                  animation: "tm-error-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both",
-                }}
+                className="flex items-start gap-2.5 pl-3 pr-4 py-2.5 rounded-md border-l-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 animate-error-in"
               >
-                <style>{`
-                  @keyframes tm-error-in {
-                    from { opacity: 0; transform: translateX(-6px); }
-                    to   { opacity: 1; transform: translateX(0); }
-                  }
-                `}</style>
                 <svg
                   width="15"
                   height="15"
                   viewBox="0 0 15 15"
                   fill="none"
-                  className="shrink-0 mt-px text-amber-500"
+                  className="shrink-0 mt-px text-amber-500 dark:text-amber-400"
                   aria-hidden="true"
                 >
                   <path
