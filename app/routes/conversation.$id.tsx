@@ -52,11 +52,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       conversationId,
     });
   } catch (error) {
-    logger.logError(error, {
-      duration: 0,
-      path: `/conversation/${conversationId}`,
-      method: "GET",
-    });
+    logger.logError(error);
     return data({
       conversation: null,
       conversations: [],
@@ -104,7 +100,7 @@ export async function action({ request }: ActionFunctionArgs) {
       conversationId: newConversationId,
     });
   } catch (error) {
-    logger.logError(error, { method: "POST", path: `/conversation`, duration: 0 });
+    logger.logError(error);
     return data(
       { error: "Failed to process message", response: "", words: [] },
       { status: 500 },

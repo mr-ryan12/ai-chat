@@ -35,7 +35,7 @@ export async function findOrCreateUser(username: string): Promise<User> {
     });
     return user;
   } catch (error) {
-    logger.logError(error, { path: "/login", method: "POST", duration: 0 });
+    logger.logError(error);
     throw error;
   }
 }

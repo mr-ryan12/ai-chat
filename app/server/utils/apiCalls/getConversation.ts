@@ -30,7 +30,7 @@ export async function getConversation(
     // If no id provided, return null (don't auto-create)
     return null;
   } catch (error) {
-    logger.logError(error, { duration: 0, path: "/", method: "GET" });
+    logger.logError(error);
     throw error;
   }
 }
@@ -46,7 +46,7 @@ export async function createNewConversation(
     });
     return newConversation;
   } catch (error) {
-    logger.logError(error, { duration: 0, path: "/", method: "POST" });
+    logger.logError(error);
     throw error;
   }
 }

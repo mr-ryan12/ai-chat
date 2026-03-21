@@ -36,15 +36,12 @@ class Logger {
     );
   }
 
-  logError(
-    error: unknown,
-    {
-      method = "GET",
-      path = "Unknown",
-      duration = 0,
-      status = 500,
-    }: ILogRequest
-  ) {
+  logError(error: unknown, context?: Partial<ILogRequest>) {
+    const method = context?.method ?? "GET";
+    const path = context?.path ?? "Unknown";
+    const duration = context?.duration ?? 0;
+    const status = context?.status ?? 500;
+
     pinoLogger.error(
       {
         level: "ERROR",

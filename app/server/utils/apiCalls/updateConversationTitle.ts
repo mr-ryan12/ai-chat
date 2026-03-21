@@ -43,10 +43,6 @@ export async function updateConversationTitle(conversationId: string, userId: st
       data: { title },
     });
   } catch (error) {
-    logger.logError(error, {
-      duration: 0,
-      path: "/update-title",
-      method: "PUT",
-    });
+    logger.logError(error);
   }
 }

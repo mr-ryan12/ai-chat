@@ -41,7 +41,7 @@ export async function createChatCompletion(
       try {
         documentContext = await queryDocuments(message, userId);
       } catch (docError) {
-        logger.logError(docError, { method: "POST", path: "/chat", duration: 0 });
+        logger.logError(docError);
         // Continue without document context
       }
     }
@@ -74,7 +74,7 @@ export async function createChatCompletion(
         tool_choice: "auto",
       });
     } catch (modelError) {
-      logger.logError(modelError, { method: "POST", path: "/chat", duration: 0 });
+      logger.logError(modelError);
       throw new Error("Failed to get response from AI model");
     }
 
@@ -116,7 +116,7 @@ export async function createChatCompletion(
           "I'm sorry, I couldn't generate a response at this time.";
       }
     } catch (e) {
-      logger.logError(e, { method: "POST", path: "/chat", duration: 0 });
+      logger.logError(e);
       fullResponse =
         "I encountered an error while processing your request. Please try again.";
     }
@@ -143,7 +143,7 @@ export async function createChatCompletion(
         ],
       });
     } catch (dbError) {
-      logger.logError(dbError, { method: "POST", path: "/chat", duration: 0 });
+      logger.logError(dbError);
       throw new Error("Failed to save conversation to database");
     }
 
@@ -152,7 +152,7 @@ export async function createChatCompletion(
       try {
         await updateConversationTitle(conversation.id, userId);
       } catch (titleError) {
-        logger.logError(titleError, { method: "POST", path: "/chat", duration: 0 });
+        logger.logError(titleError);
         // Don't throw here, as the main conversation was saved
       }
     }
@@ -165,7 +165,7 @@ export async function createChatCompletion(
       conversationId: conversation.id,
     };
   } catch (error) {
-    logger.logError(error, { method: "POST", path: "/chat", duration: 0 });
+    logger.logError(error);
     throw error; // Re-throw the original error instead of wrapping it
   }
 }

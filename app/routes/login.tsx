@@ -31,7 +31,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const user = await findOrCreateUser(username);
     return createUserSession(user.id);
   } catch (error) {
-    logger.logError(error, { path: "/login", method: "POST", duration: 0 });
+    logger.logError(error);
     return data(
       { error: "Something went wrong. Please try again." },
       { status: 500 },

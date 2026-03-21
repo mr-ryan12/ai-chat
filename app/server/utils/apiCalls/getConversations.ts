@@ -40,11 +40,7 @@ export async function getConversations(userId: string): Promise<ConversationSumm
       messageCount: conv._count.messages,
     }));
   } catch (error) {
-    logger.logError(error, {
-      duration: 0,
-      path: "/conversations",
-      method: "GET",
-    });
+    logger.logError(error);
     return [];
   }
 }
