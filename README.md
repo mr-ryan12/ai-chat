@@ -1,75 +1,22 @@
 # ThreadMind
 
-A Remix-based chat application with document ingestion and vector search capabilities using OpenAI and PostgreSQL with pgvector.  
-View the [deployment here](https://threadmind.dev)
+An AI-powered chat application with RAG (Retrieval-Augmented Generation) capabilities. Upload documents, ask questions, and get context-aware answers powered by OpenAI and pgvector.
 
-## Prerequisites
-
-- Node.js >= 18.0.0
-- PostgreSQL with pgvector extension
-- OpenAI API key
-- SerpAPI key
-
-## Setup
-
-### 1. Install Dependencies
-
-```bash
-yarn install
-```
-
-### 2. Database Setup
-
-Install and start PostgreSQL:
-
-```bash
-brew install postgresql
-brew services start postgresql
-```
-
-### 3. Environment Variables
-
-Copy the `.env` file and add your API keys:
-
-```bash
-OPENAI_API_KEY="your-openai-api-key"
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ai_chat?schema=public"
-SERPAPI_KEY="your-serpapi-key"
-```
-
-**Get API Keys:**
-- OpenAI API key: https://platform.openai.com/api-keys
-- SerpAPI key: https://serpapi.com/
-
-### 4. Database Migration
-
-```bash
-yarn prisma:generate
-yarn migrate:latest
-```
-
-## Development
-
-Run the dev server:
-
-```bash
-yarn dev
-```
-
-The app will be available at http://localhost:3000
+**Live at [threadmind.dev](https://threadmind.dev)**
 
 ## Features
 
-- AI-powered chat conversations
-- Document upload and ingestion
-- Vector similarity search
-- Conversation management
-- PostgreSQL with pgvector for embeddings
+- **AI Chat** — Conversational interface powered by GPT-4
+- **Document Upload & Ingestion** — Upload documents that get chunked, embedded, and stored for retrieval
+- **Vector Search** — Relevant document context is surfaced automatically using pgvector cosine similarity
+- **Tool Use** — Built-in web search (SerpAPI) and timezone tools the AI can call mid-conversation
+- **Conversation Management** — Create, browse, and delete conversation threads
+- **Auth** — Cookie-based session authentication with secure password hashing
 
-## Available Scripts
+## Tech Stack
 
-- `yarn dev` - Start development server
-- `yarn build` - Build for production
-- `yarn start` - Start production server
-- `yarn prisma:generate` - Generate the Prisma Client
-- `yarn migrate:latest` - Apply database migrations
+- **Framework:** Remix v2 + Vite
+- **Language:** TypeScript (strict mode)
+- **Database:** PostgreSQL + pgvector
+- **AI:** OpenAI GPT-4 + text-embedding-ada-002 via LangChain
+- **Styling:** Tailwind CSS
