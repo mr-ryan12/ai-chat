@@ -1,5 +1,5 @@
 // Packages
-import { data, ActionFunctionArgs } from "@remix-run/node";
+import { ActionFunctionArgs } from "@remix-run/node";
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
@@ -34,7 +34,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         status: 400,
         service: "INTERNAL",
       });
-      return data({ error: "No file uploaded" }, { status: 400 });
+      return Response.json({ error: "No file uploaded" }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -53,9 +53,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       where: { userId, contentHash },
       select: { id: true },
     });
-
     if (existing) {
-      return data(
+      return Response.json(
         { error: "This document has already been uploaded." },
         { status: 409 },
       );
@@ -91,7 +90,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       service: "INTERNAL",
     });
 
-    return data({ success: true });
+    return Response.json({ success: true });
   } catch (error) {
     logger.logError(error, {
       method: request.method,
@@ -100,13 +99,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       status: 500,
       service: "INTERNAL",
     });
-    return data(
+    return Response.json(
       { error: error instanceof Error ? error.message : String(error) },
       { status: 500 },
     );
   }
 };
-
-export default function UploadFile() {
-  return null;
-}
