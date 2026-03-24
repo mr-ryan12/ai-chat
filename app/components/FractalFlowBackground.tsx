@@ -88,31 +88,56 @@ interface RGB {
   b: number;
 }
 
-/** Map velocity (0–1 normalised) to brand colors. */
-function velocityColor(v: number): RGB {
-  // 0.0 = deep navy/indigo, 0.4 = teal, 0.7 = cyan, 1.0 = hot amber
+/**
+ * Map velocity (0–1 normalised) to brand colors.
+ * magentaMix (0–1) blends from the default teal/amber palette
+ * toward a magenta/fuchsia variant.
+ */
+function velocityColor(v: number, magentaMix: number): RGB {
+  // ── Default palette: navy → teal → cyan → amber ──
+  let dr: number, dg: number, db: number;
   if (v < 0.35) {
     const t = v / 0.35;
-    return {
-      r: lerp(10, 8, t),
-      g: lerp(12, 80, t),
-      b: lerp(42, 120, t),
-    };
-  }
-  if (v < 0.65) {
+    dr = lerp(10, 8, t);
+    dg = lerp(12, 80, t);
+    db = lerp(42, 120, t);
+  } else if (v < 0.65) {
     const t = (v - 0.35) / 0.3;
-    return {
-      r: lerp(8, 6, t),
-      g: lerp(80, 182, t),
-      b: lerp(120, 212, t),
-    };
+    dr = lerp(8, 6, t);
+    dg = lerp(80, 182, t);
+    db = lerp(120, 212, t);
+  } else {
+    const t = (v - 0.65) / 0.35;
+    dr = lerp(6, 245, t);
+    dg = lerp(182, 158, t);
+    db = lerp(212, 11, t);
   }
-  // 0.65 → 1.0: cyan to amber
-  const t = (v - 0.65) / 0.35;
+
+  if (magentaMix < 0.01) return { r: dr, g: dg, b: db };
+
+  // ── Magenta palette: deep purple → magenta → hot fuchsia ──
+  let mr: number, mg: number, mb: number;
+  if (v < 0.35) {
+    const t = v / 0.35;
+    mr = lerp(18, 60, t);
+    mg = lerp(8, 15, t);
+    mb = lerp(40, 90, t);
+  } else if (v < 0.65) {
+    const t = (v - 0.35) / 0.3;
+    mr = lerp(60, 180, t);
+    mg = lerp(15, 40, t);
+    mb = lerp(90, 170, t);
+  } else {
+    const t = (v - 0.65) / 0.35;
+    mr = lerp(180, 240, t);
+    mg = lerp(40, 60, t);
+    mb = lerp(170, 180, t);
+  }
+
   return {
-    r: lerp(6, 245, t),
-    g: lerp(182, 158, t),
-    b: lerp(212, 11, t),
+    r: lerp(dr, mr, magentaMix),
+    g: lerp(dg, mg, magentaMix),
+    b: lerp(db, mb, magentaMix),
   };
 }
 
@@ -160,6 +185,10 @@ export default function FractalFlowBackground(): React.ReactElement {
     let targetLacunarity = lacunarity;
     let targetGain = gain;
     let nextMutationTime = 6000;
+
+    // Magenta color drift — activated ~15% of mutations
+    let magentaMix = 0; // current blend (0 = normal, 1 = full magenta)
+    let targetMagenta = 0;
 
     function resize(): void {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -228,12 +257,20 @@ export default function FractalFlowBackground(): React.ReactElement {
         targetGain = 0.35 + Math.random() * 0.3;
         octaves = 2 + Math.floor(Math.random() * 3);
         nextMutationTime = time + 8000 + Math.random() * 12000;
+
+        // ~15% chance to drift toward magenta, otherwise fade back
+        if (Math.random() < 0.15) {
+          targetMagenta = 0.5 + Math.random() * 0.5; // partial to full
+        } else {
+          targetMagenta = 0;
+        }
       }
 
       // Smooth interpolation toward targets
       fieldScale += (targetScale - fieldScale) * 0.002;
       lacunarity += (targetLacunarity - lacunarity) * 0.003;
       gain += (targetGain - gain) * 0.003;
+      magentaMix += (targetMagenta - magentaMix) * 0.006; // slow color drift
 
       // Continuous drift of the field origin
       const drift = time * 0.00004;
@@ -295,7 +332,7 @@ export default function FractalFlowBackground(): React.ReactElement {
         }
         alpha *= 0.4 + velNorm * 0.4; // faster particles are brighter
 
-        const col = velocityColor(velNorm);
+        const col = velocityColor(velNorm, magentaMix);
 
         // Draw trail segment (line from prev to current position)
         ctx.strokeStyle = `rgba(${col.r}, ${col.g}, ${col.b}, ${alpha})`;
