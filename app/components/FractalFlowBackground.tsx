@@ -256,10 +256,10 @@ export default function FractalFlowBackground(): React.ReactElement {
         targetLacunarity = 1.6 + Math.random() * 1.2;
         targetGain = 0.35 + Math.random() * 0.3;
         octaves = 2 + Math.floor(Math.random() * 3);
-        nextMutationTime = time + 8000 + Math.random() * 12000;
+        nextMutationTime = time + 6000 + Math.random() * 6000;
 
-        // ~15% chance to drift toward magenta, otherwise fade back
-        if (Math.random() < 0.15) {
+        // ~20% chance to drift toward magenta, otherwise fade back
+        if (Math.random() < 0.2) {
           targetMagenta = 0.5 + Math.random() * 0.5; // partial to full
         } else {
           targetMagenta = 0;
