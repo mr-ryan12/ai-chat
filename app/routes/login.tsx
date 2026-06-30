@@ -65,7 +65,7 @@ export default function Login() {
             ThreadMind
           </h1>
           <p className="mt-2 text-center text-sm text-gray-400">
-            Enter a username to get started — no password required.
+            Enter a username to get started. No password required.
           </p>
         </div>
 
