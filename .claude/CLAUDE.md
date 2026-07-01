@@ -19,6 +19,8 @@ yarn build            # Production build
 yarn start            # Run production build
 yarn lint             # ESLint
 yarn typecheck        # TypeScript type check (tsc)
+yarn test             # Run unit tests once (vitest)
+yarn test:watch       # Run unit tests in watch mode (vitest)
 yarn prisma:generate  # Generate Prisma client (run after schema changes)
 yarn migrate:new      # Create a new migration (dev)
 yarn migrate:latest   # Apply pending migrations (deploy/CI)
