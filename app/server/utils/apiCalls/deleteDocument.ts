@@ -27,7 +27,7 @@ export async function deleteDocument(
       prisma.document.delete({ where: { id: documentId } }),
     ]);
 
-    return { success: true as const };
+    return { success: true };
   } catch (error) {
     logger.logError(error, {
       duration: 0,

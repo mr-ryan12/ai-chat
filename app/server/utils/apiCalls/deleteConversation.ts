@@ -29,7 +29,7 @@ export async function deleteConversation(
       prisma.conversation.deleteMany({ where: { id: conversationId, userId } }),
     ]);
 
-    return { success: true as const };
+    return { success: true };
   } catch (error) {
     logger.logError(error, {
       duration: 0,
