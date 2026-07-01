@@ -9,6 +9,7 @@ import {
 // Utils
 import { systemMessage } from "~/server/utils/systemMessage";
 import { queryDocuments } from "../server/utils/documentService";
+import { wantsDocumentContext } from "~/server/utils/documentIntent";
 import { toolImplementations, tools } from "../server/utils/tools";
 import { logger } from "~/server/utils/logger";
 
@@ -31,15 +32,13 @@ export async function createChatCompletion(
       temperature: 0,
     });
 
-    // Get relevant document content if the query seems to be about documents
+    // Pull document context when the message refers to documents. Retrieval is
+    // scoped to the current conversation's uploads first, then the user's most
+    // recent upload, then a corpus-wide semantic search (see queryDocuments).
     let documentContext = "";
-    if (
-      message.toLowerCase().includes("document") ||
-      message.toLowerCase().includes("text") ||
-      message.toLowerCase().includes("content")
-    ) {
+    if (wantsDocumentContext(message)) {
       try {
-        documentContext = await queryDocuments(message, userId);
+        documentContext = await queryDocuments(message, userId, conversationId);
       } catch (docError) {
         logger.logError(docError);
         // Continue without document context
