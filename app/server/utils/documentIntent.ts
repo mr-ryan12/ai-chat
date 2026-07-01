@@ -33,7 +33,10 @@ const FULL_DOCUMENT_PATTERNS: RegExp[] = [
   /\bsummar(y|ize|ise|isation|ization)\b/,
   /\boverview\b/,
   /\btl;?dr\b/,
-  /\bwhat('?s| is| does| are)\b.*\b(in|about|say)\b/,
+  // "what's in this", "what is in the document" — but not "what's <X> in the doc".
+  /\bwhat('?s| is) in\b/,
+  // "what is this about", "what does it say", "what's the document about".
+  /\bwhat('?s| is| does| are) (this|it|that|the)\b.*\b(about|say|contain)\b/,
   /\bwhole (document|doc|file)\b/,
   /\bentire (document|doc|file)\b/,
   /\b(key|main) (points|takeaways|ideas)\b/,
