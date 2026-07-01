@@ -15,7 +15,7 @@ import { logger } from "~/server/utils/logger";
 
 // Server
 import { prisma } from "../server/db.server";
-import { getConversation, createNewConversation } from "~/server/utils/apiCalls/getConversation";
+import { getConversation, createNewConversation, ensureConversation } from "~/server/utils/apiCalls/getConversation";
 import { updateConversationTitle } from "~/server/utils/apiCalls/updateConversationTitle";
 
 // Types
@@ -120,9 +120,13 @@ export async function createChatCompletion(
         "I encountered an error while processing your request. Please try again.";
     }
 
-    // Only create conversation after successful AI response
+    // Only create the conversation after a successful AI response. When the client
+    // supplied an id (an upload may already have created the row under it), reuse it
+    // via ensureConversation; otherwise fall back to a server-generated conversation.
     if (!conversation) {
-      conversation = await createNewConversation(userId);
+      conversation = conversationId
+        ? await ensureConversation(conversationId, userId)
+        : await createNewConversation(userId);
     }
 
     // Save the messages

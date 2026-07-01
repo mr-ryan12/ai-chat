@@ -6,6 +6,7 @@ import crypto from "crypto";
 
 // Utils
 import { ingestDocument } from "../server/utils/documentService";
+import { ensureConversation } from "~/server/utils/apiCalls/getConversation";
 import { logger } from "../server/utils/logger";
 import { requireAuth } from "~/utils/auth.server";
 import { extractTextFromFile } from "../utils/extractTextFromFile";
@@ -26,17 +27,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const conversationIdInput = formData.get("conversationId");
-
-    // Only attach the upload to a conversation the user actually owns; otherwise
-    // leave it unlinked and let recency-based retrieval handle it.
-    let conversationId: string | null = null;
-    if (typeof conversationIdInput === "string" && conversationIdInput !== "") {
-      const conversation = await prisma.conversation.findFirst({
-        where: { id: conversationIdInput, userId },
-        select: { id: true },
-      });
-      conversationId = conversation?.id ?? null;
-    }
 
     if (!file) {
       logger.logError("No file uploaded", {
@@ -70,6 +60,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { error: "This document has already been uploaded." },
         { status: 409 },
       );
+    }
+
+    // Link the upload to its conversation, creating it if this is the first
+    // interaction in the session. Done only after validation/dedup so a rejected
+    // upload never spawns an empty conversation.
+    let conversationId: string | null = null;
+    if (typeof conversationIdInput === "string" && conversationIdInput !== "") {
+      const conversation = await ensureConversation(
+        conversationIdInput,
+        userId,
+        originalname,
+      );
+      conversationId = conversation.id;
     }
 
     // Generate secure filename to prevent path traversal

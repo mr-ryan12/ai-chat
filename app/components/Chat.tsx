@@ -84,9 +84,11 @@ export default function Chat({
           console.error("Failed to load messages:", error);
         }
       } else {
-        // No conversation ID, clear everything
+        // Fresh chat: generate the conversation id up front so an upload and the
+        // first message share it. Nothing is written to the DB until the first
+        // real action, so abandoning the page leaves no record behind.
         setMessages([]);
-        setConversationId("");
+        setConversationId(crypto.randomUUID());
         setStreamingResponse("");
       }
     };

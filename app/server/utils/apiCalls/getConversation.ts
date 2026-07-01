@@ -50,3 +50,40 @@ export async function createNewConversation(
     throw error;
   }
 }
+
+// Get-or-create a conversation for a client-provided id, scoped to the user.
+// This lets an upload and the first message agree on the same id up front, so a
+// Document is always linked to a real Conversation at write time (no orphans).
+export async function ensureConversation(
+  id: string,
+  userId: string,
+  title?: string
+): Promise<ConversationWithMessages> {
+  try {
+    const existing = await prisma.conversation.findFirst({
+      where: { id, userId },
+      include: { messages: true },
+    });
+    if (existing) {
+      return existing;
+    }
+
+    return await prisma.conversation.create({
+      data: { id, userId, title },
+      include: { messages: true },
+    });
+  } catch (error) {
+    // A concurrent request may have created it first; re-fetch within this user's
+    // scope. If the id exists but isn't owned by this user, the re-fetch is empty
+    // and we rethrow — a user can never attach to another user's conversation.
+    const conflict = await prisma.conversation.findFirst({
+      where: { id, userId },
+      include: { messages: true },
+    });
+    if (conflict) {
+      return conflict;
+    }
+    logger.logError(error);
+    throw error;
+  }
+}
