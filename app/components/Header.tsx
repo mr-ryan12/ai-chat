@@ -2,6 +2,7 @@
 import { Form } from "@remix-run/react";
 
 // Components
+import DocumentManager from "./DocumentManager";
 import ThemeToggle from "./ThemeToggle";
 import ThreadMindLogo from "./ThreadMindLogo";
 
@@ -51,6 +52,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 Online
               </span>
             </div>
+            <DocumentManager />
             <ThemeToggle />
             <Form method="post" action="/api/logout">
               <button
