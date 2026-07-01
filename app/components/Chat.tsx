@@ -161,6 +161,9 @@ export default function Chat({
     setUploadMessage(null);
     const formData = new FormData();
     formData.append("file", file);
+    if (conversationId) {
+      formData.append("conversationId", conversationId);
+    }
     try {
       const res = await fetch("/upload-file", {
         method: "POST",

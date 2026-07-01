@@ -25,6 +25,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
+    const conversationIdInput = formData.get("conversationId");
+
+    // Only attach the upload to a conversation the user actually owns; otherwise
+    // leave it unlinked and let recency-based retrieval handle it.
+    let conversationId: string | null = null;
+    if (typeof conversationIdInput === "string" && conversationIdInput !== "") {
+      const conversation = await prisma.conversation.findFirst({
+        where: { id: conversationIdInput, userId },
+        select: { id: true },
+      });
+      conversationId = conversation?.id ?? null;
+    }
 
     if (!file) {
       logger.logError("No file uploaded", {
@@ -66,7 +78,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     try {
       await fs.writeFile(tempTextPath, text, "utf-8");
-      await ingestDocument(tempTextPath, userId, { title: originalname, contentHash });
+      await ingestDocument(
+        tempTextPath,
+        userId,
+        { title: originalname, contentHash },
+        conversationId,
+      );
     } finally {
       // Always cleanup temp file
       try {
