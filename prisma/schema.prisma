@@ -77,13 +77,16 @@ model DocumentChunk {
   // ingestion. See migration 20260701_add_fts_generated_column_and_gin_indexes.
   fts        Unsupported("tsvector")?
   createdAt  DateTime                    @default(now())
-  // GIN indexes for `fts` and `metadata` are created in that migration (Prisma can't
-  // express GIN indexes on Unsupported columns).
-
   @@index([documentId])
   @@index([section])
   @@index([page])
   @@index([orderInDoc])
+  // GIN indexes are declared here so Prisma tracks them (no drift), but they're created
+  // in raw migration SQL alongside the fts generated column. The HNSW index on
+  // `embedding` and the fts GENERATED expression stay raw — neither is expressible in
+  // the Prisma schema.
+  @@index([metadata], type: Gin)
+  @@index([fts], type: Gin)
 }
 
 enum Role {
