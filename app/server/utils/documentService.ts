@@ -1,4 +1,5 @@
 // Packages
+import { Prisma } from "@prisma/client";
 import { prisma } from "~/server/db.server";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { MarkdownTextSplitter } from "langchain/text_splitter";
@@ -19,9 +20,119 @@ const embeddings = new OpenAIEmbeddings();
 // Retrieval limits. MAX_CHUNKS_PER_QUERY is the hard cap required by the DB rules (≤ 10).
 const MAX_CHUNKS_PER_QUERY = 10;
 const SEMANTIC_TOP_K = 5;
-const DISTANCE_THRESHOLD = 0.85;
+// Candidate pool pulled from each retriever before fusion.
+const HYBRID_CANDIDATE_POOL = 20;
+// RRF constant — dampens the weight of top ranks so lower ranks still contribute.
+const RRF_K = 60;
+// Relevance floor for corpus-wide vector search (L2 distance via the `<->` operator).
+const VECTOR_DISTANCE_THRESHOLD = 0.85;
 const NO_CONTENT_MESSAGE =
   "I couldn't find any relevant content in the documents.";
+
+interface RankedChunk {
+  id: string;
+  content: string;
+}
+
+interface RetrievalScope {
+  userId: string;
+  documentId?: string;
+}
+
+// Combine ranked lists by Reciprocal Rank Fusion: each list contributes 1/(k+rank)
+// to a chunk's score, so chunks ranked highly by several retrievers rise to the top —
+// without normalizing the incomparable score scales of vector distance vs. ts_rank.
+function reciprocalRankFusion(
+  rankedLists: RankedChunk[][],
+  k: number,
+  limit: number
+): RankedChunk[] {
+  const scores = new Map<string, { content: string; score: number }>();
+  for (const list of rankedLists) {
+    list.forEach((chunk, index) => {
+      const contribution = 1 / (k + index + 1);
+      const existing = scores.get(chunk.id);
+      if (existing) {
+        existing.score += contribution;
+      } else {
+        scores.set(chunk.id, { content: chunk.content, score: contribution });
+      }
+    });
+  }
+
+  return [...scores.entries()]
+    .sort((a, b) => b[1].score - a[1].score)
+    .slice(0, limit)
+    .map(([id, { content }]) => ({ id, content }));
+}
+
+// Hybrid retrieval: pgvector similarity + Postgres full-text search, fused with RRF
+// and scoped to the authenticated user (and optionally a single document).
+export class HybridRetriever {
+  constructor(private readonly embeddings: OpenAIEmbeddings) {}
+
+  async retrieve(
+    query: string,
+    scope: RetrievalScope,
+    limit: number
+  ): Promise<RankedChunk[]> {
+    const queryEmbedding = await this.embeddings.embedQuery(query);
+    const poolSize = Math.max(limit, HYBRID_CANDIDATE_POOL);
+
+    const [vectorHits, fullTextHits] = await Promise.all([
+      this.vectorSearch(queryEmbedding, scope, poolSize),
+      this.fullTextSearch(query, scope, poolSize),
+    ]);
+
+    return reciprocalRankFusion([vectorHits, fullTextHits], RRF_K, limit);
+  }
+
+  private scopeFilter(scope: RetrievalScope): Prisma.Sql {
+    return scope.documentId
+      ? Prisma.sql`AND dc."documentId" = ${scope.documentId}`
+      : Prisma.empty;
+  }
+
+  private vectorSearch(
+    queryEmbedding: number[],
+    scope: RetrievalScope,
+    limit: number
+  ): Promise<RankedChunk[]> {
+    // Apply a relevance floor for corpus-wide search so unrelated documents are
+    // excluded (and a truly-empty result can surface the no-content message). When a
+    // specific document is already targeted, return its best chunks without a floor.
+    const relevanceFloor = scope.documentId
+      ? Prisma.empty
+      : Prisma.sql`AND dc.embedding <-> ${queryEmbedding}::vector < ${VECTOR_DISTANCE_THRESHOLD}`;
+
+    return prisma.$queryRaw<RankedChunk[]>(Prisma.sql`
+      SELECT dc.id, dc.content
+      FROM "DocumentChunk" dc
+      JOIN "Document" d ON dc."documentId" = d.id
+      WHERE d."userId" = ${scope.userId} ${this.scopeFilter(scope)} ${relevanceFloor}
+      ORDER BY dc.embedding <-> ${queryEmbedding}::vector ASC
+      LIMIT ${limit}
+    `);
+  }
+
+  private fullTextSearch(
+    query: string,
+    scope: RetrievalScope,
+    limit: number
+  ): Promise<RankedChunk[]> {
+    return prisma.$queryRaw<RankedChunk[]>(Prisma.sql`
+      SELECT dc.id, dc.content
+      FROM "DocumentChunk" dc
+      JOIN "Document" d ON dc."documentId" = d.id
+      WHERE d."userId" = ${scope.userId} ${this.scopeFilter(scope)}
+        AND dc.fts @@ plainto_tsquery('english', ${query})
+      ORDER BY ts_rank(dc.fts, plainto_tsquery('english', ${query})) DESC
+      LIMIT ${limit}
+    `);
+  }
+}
+
+const hybridRetriever = new HybridRetriever(embeddings);
 
 export async function ingestDocument(
   filePath: string,
@@ -59,7 +170,8 @@ export async function ingestDocument(
     JSON.stringify(metadata)
   );
 
-  // Process each chunk
+  // Process each chunk. DocumentChunk.fts is a generated column (to_tsvector on
+  // content), so no full-text column needs to be written here.
   let orderInDoc = 0;
   for (const doc of docs) {
     // Generate embedding for the chunk
@@ -91,8 +203,6 @@ export async function queryDocuments(
   userId: string,
   conversationId?: string
 ): Promise<string> {
-  const queryEmbedding = await embeddings.embedQuery(query);
-
   // Layered routing: figure out whether the user is pointing at one specific
   // document ("the doc I just uploaded") before falling back to corpus-wide search.
   const targetDocumentId = await resolveTargetDocumentId(
@@ -101,22 +211,16 @@ export async function queryDocuments(
     conversationId
   );
 
-  let chunks: DocumentChunk[];
-  if (targetDocumentId) {
-    // Scope retrieval to the document the user is referring to. For whole-document
-    // intents (summaries) return chunks in reading order; otherwise rank by similarity.
-    chunks = wantsFullDocument(query)
-      ? await getDocumentChunksInOrder(targetDocumentId, MAX_CHUNKS_PER_QUERY)
-      : await getSimilarChunksInDocument(
-          targetDocumentId,
-          queryEmbedding,
-          SEMANTIC_TOP_K
-        );
+  let chunks: { content: string }[];
+  if (targetDocumentId && wantsFullDocument(query)) {
+    // Whole-document intent (summary): return the target doc's chunks in reading order.
+    chunks = await getDocumentChunksInOrder(targetDocumentId, MAX_CHUNKS_PER_QUERY);
   } else {
-    // No specific target — search across all of the user's documents.
-    chunks = await getSimilarChunksForUser(
-      userId,
-      queryEmbedding,
+    // Hybrid search — scoped to the target document when one was resolved, else
+    // across all of the user's documents.
+    chunks = await hybridRetriever.retrieve(
+      query,
+      { userId, documentId: targetDocumentId ?? undefined },
       SEMANTIC_TOP_K
     );
   }
@@ -172,54 +276,4 @@ async function getDocumentChunksInOrder(
     ORDER BY "orderInDoc" ASC NULLS LAST
     LIMIT ${limit}
   `;
-}
-
-// Most similar chunks within a single, already-targeted document.
-async function getSimilarChunksInDocument(
-  documentId: string,
-  queryEmbedding: number[],
-  limit: number
-): Promise<DocumentChunk[]> {
-  const chunks = await prisma.$queryRaw<DocumentChunk[]>`
-    SELECT DISTINCT ON (dc.content) dc.content, dc.embedding <-> ${queryEmbedding}::vector AS distance
-    FROM "DocumentChunk" dc
-    WHERE dc."documentId" = ${documentId}
-    ORDER BY dc.content, distance ASC
-  `;
-
-  chunks.sort((a, b) => (a?.distance || 0) - (b?.distance || 0));
-  return chunks.slice(0, limit);
-}
-
-// Corpus-wide semantic search scoped to the authenticated user (fallback path).
-// DISTINCT ON (content) prevents duplicate chunks from multiple ingestions.
-async function getSimilarChunksForUser(
-  userId: string,
-  queryEmbedding: number[],
-  limit: number
-): Promise<DocumentChunk[]> {
-  const chunks = await prisma.$queryRaw<DocumentChunk[]>`
-    SELECT DISTINCT ON (dc.content) dc.content, dc.embedding <-> ${queryEmbedding}::vector AS distance
-    FROM "DocumentChunk" dc
-    JOIN "Document" d ON dc."documentId" = d.id
-    WHERE d."userId" = ${userId}
-      AND dc.embedding <-> ${queryEmbedding}::vector < ${DISTANCE_THRESHOLD}
-    ORDER BY dc.content, distance ASC
-  `;
-
-  chunks.sort((a, b) => (a?.distance || 0) - (b?.distance || 0));
-  return chunks.slice(0, limit);
-}
-
-// HybridRetriever stub for agentic retrieval
-export class HybridRetriever {
-  async getRelevantDocuments(): Promise<DocumentChunk[]> {
-    // 1. Embed query
-    // 2. Run hybrid search (vector + FTS + metadata)
-    // 3. Group/merge chunks (by section/page/order)
-    // 4. Return as DocumentChunk[]
-    // TODO: Integrate ANN vector DB for large scale (e.g., Pinecone, Weaviate)
-    // TODO: Integrate agentic tools and executor here
-    return [];
-  }
 }

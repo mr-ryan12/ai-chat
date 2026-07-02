@@ -25,18 +25,39 @@ import { prisma } from "~/server/db.server";
 const findFirst = prisma.document.findFirst as unknown as ReturnType<typeof vi.fn>;
 const queryRaw = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
 
-// Identify which retrieval branch ran by inspecting the raw SQL, and return
-// branch-specific canned chunks so assertions can tell the paths apart.
+// queryDocuments calls $queryRaw both as a tagged template (ordered-chunk path) and
+// with a Prisma.Sql object (hybrid retriever). Extract the SQL text from either.
+function sqlText(arg: unknown): string {
+  if (Array.isArray(arg)) return arg.join(" ");
+  if (arg && typeof arg === "object") {
+    const sql = arg as { sql?: string; strings?: string[] };
+    if (typeof sql.sql === "string") return sql.sql;
+    if (Array.isArray(sql.strings)) return sql.strings.join(" ");
+  }
+  return String(arg);
+}
+
+// Branch-specific canned results so assertions can tell the retrieval paths apart.
+// Hybrid fusion of the vector + full-text lists below ranks c2 (in both) first.
+const FUSED_HYBRID = "shared\n\nv-top\n\nf-only";
+
 function stubQueryRaw(): void {
-  queryRaw.mockImplementation((strings: unknown) => {
-    const sql = (strings as TemplateStringsArray).join(" ");
+  queryRaw.mockImplementation((arg: unknown) => {
+    const sql = sqlText(arg);
     if (sql.includes("orderInDoc")) {
       return Promise.resolve([{ content: "ordered-a" }, { content: "ordered-b" }]);
     }
-    if (sql.includes('JOIN "Document"')) {
-      return Promise.resolve([{ content: "semantic-user", distance: 0.2 }]);
+    if (sql.includes("plainto_tsquery")) {
+      return Promise.resolve([
+        { id: "c2", content: "shared" },
+        { id: "c3", content: "f-only" },
+      ]);
     }
-    return Promise.resolve([{ content: "in-doc", distance: 0.1 }]);
+    // vector search
+    return Promise.resolve([
+      { id: "c1", content: "v-top" },
+      { id: "c2", content: "shared" },
+    ]);
   });
 }
 
@@ -46,11 +67,11 @@ beforeEach(() => {
 });
 
 describe("queryDocuments routing", () => {
-  it("scopes to the current conversation's document when one exists", async () => {
+  it("scopes to the current conversation's document, then hybrid-searches it", async () => {
     findFirst.mockResolvedValueOnce({ id: "doc-conv" });
 
     const result = await queryDocuments(
-      "what's my phone number in the resume",
+      "find the pricing in the resume",
       "user-1",
       "conv-1",
     );
@@ -58,8 +79,7 @@ describe("queryDocuments routing", () => {
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: "user-1", conversationId: "conv-1" } }),
     );
-    // Targeted (not whole-doc) lookup within the resolved doc → in-document semantic.
-    expect(result).toBe("in-doc");
+    expect(result).toBe(FUSED_HYBRID);
   });
 
   it("returns ordered chunks for a whole-document summary of the resolved doc", async () => {
@@ -91,24 +111,27 @@ describe("queryDocuments routing", () => {
     expect(result).toBe("ordered-a\n\nordered-b");
   });
 
-  it("uses recency scoping even without a conversationId for a specific-doc query", async () => {
+  it("hybrid-searches the recent doc for a specific-but-not-summary query", async () => {
     findFirst.mockResolvedValueOnce({ id: "doc-recent" });
 
-    const result = await queryDocuments("what does the file I uploaded say", "user-1");
+    const result = await queryDocuments(
+      "find the pricing in the file i uploaded",
+      "user-1",
+    );
 
     expect(findFirst).toHaveBeenCalledTimes(1);
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: "user-1" } }),
     );
-    expect(result).toBe("ordered-a\n\nordered-b");
+    expect(result).toBe(FUSED_HYBRID);
   });
 
-  it("does a user-wide semantic search when the query targets no specific doc", async () => {
+  it("does a user-wide hybrid search when the query targets no specific doc", async () => {
     const result = await queryDocuments("tell me about the content", "user-1");
 
     // No conversationId and not a specific-doc reference → no document lookup.
     expect(findFirst).not.toHaveBeenCalled();
-    expect(result).toBe("semantic-user");
+    expect(result).toBe(FUSED_HYBRID);
   });
 
   it("returns the no-content message when retrieval finds nothing", async () => {

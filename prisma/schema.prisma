@@ -73,11 +73,12 @@ model DocumentChunk {
   page       Int?
   orderInDoc Int?
   metadata   Json?
+  // Generated column: to_tsvector('english', content). Populated by the DB, not by
+  // ingestion. See migration 20260701_add_fts_generated_column_and_gin_indexes.
   fts        Unsupported("tsvector")?
   createdAt  DateTime                    @default(now())
-  // GIN index for metadata and FTS must be created manually in migration SQL
-  // CREATE INDEX chunk_metadata_idx ON "DocumentChunk" USING GIN (metadata);
-  // CREATE INDEX chunk_fts_idx ON "DocumentChunk" USING GIN (fts);
+  // GIN indexes for `fts` and `metadata` are created in that migration (Prisma can't
+  // express GIN indexes on Unsupported columns).
 
   @@index([documentId])
   @@index([section])
