@@ -17,8 +17,13 @@ vi.mock("~/server/db.server", () => ({
   },
 }));
 
+vi.mock("~/server/utils/logger", () => ({
+  logger: { logCostLimit: vi.fn(), logError: vi.fn(), logRequest: vi.fn() },
+}));
+
 import { queryDocuments } from "./documentService";
 import { prisma } from "~/server/db.server";
+import { logger } from "~/server/utils/logger";
 
 // Loosely-typed handles so canned return values don't have to satisfy Prisma's
 // PrismaPromise signatures.
@@ -140,5 +145,20 @@ describe("queryDocuments routing", () => {
     const result = await queryDocuments("tell me about the content", "user-1");
 
     expect(result).toBe("I couldn't find any relevant content in the documents.");
+  });
+
+  it("truncates context over the token budget and logs a cost-limit event", async () => {
+    const huge = "x".repeat(20000); // well past 3000 tokens * 4 chars
+    queryRaw.mockImplementation((arg: unknown) => {
+      const sql = sqlText(arg);
+      if (sql.includes("plainto_tsquery")) return Promise.resolve([]);
+      return Promise.resolve([{ id: "big", content: huge }]);
+    });
+
+    const result = await queryDocuments("tell me about the content", "user-1");
+
+    expect(result.length).toBeLessThanOrEqual(3000 * 4);
+    expect(result.endsWith("[Context truncated to fit the token budget.]")).toBe(true);
+    expect(logger.logCostLimit).toHaveBeenCalledTimes(1);
   });
 });

@@ -11,6 +11,10 @@ import {
   referencesSpecificDocument,
   wantsFullDocument,
 } from "~/server/utils/documentIntent";
+import { logger } from "~/server/utils/logger";
+
+// Packages (node)
+import { randomUUID } from "crypto";
 
 // Types
 import { DocumentChunk } from "~/types/documentChunk.types";
@@ -29,6 +33,10 @@ const HYBRID_CANDIDATE_POOL = 20;
 const RRF_K = 60;
 // Relevance floor for corpus-wide vector search (L2 distance via the `<->` operator).
 const VECTOR_DISTANCE_THRESHOLD = 0.85;
+// Hard ceiling on injected document context (chat-responses.md). Token count is
+// estimated (~chars/token) to stay dependency-free — a guardrail, not a billing meter.
+const MAX_CONTEXT_TOKENS = 3000;
+const CHARS_PER_TOKEN = 4;
 const NO_CONTENT_MESSAGE =
   "I couldn't find any relevant content in the documents.";
 
@@ -233,7 +241,27 @@ export async function queryDocuments(
     return NO_CONTENT_MESSAGE;
   }
 
-  return topChunks.map((chunk) => chunk.content).join("\n\n");
+  const context = topChunks.map((chunk) => chunk.content).join("\n\n");
+  return enforceContextBudget(context, userId);
+}
+
+// Enforce the MAX_CONTEXT_TOKENS ceiling on injected context. Truncates
+// deterministically and logs a cost-limit event — never trims silently.
+function enforceContextBudget(context: string, userId: string): string {
+  const maxChars = MAX_CONTEXT_TOKENS * CHARS_PER_TOKEN;
+  if (context.length <= maxChars) {
+    return context;
+  }
+
+  logger.logCostLimit({
+    correlationId: randomUUID(),
+    userId,
+    limitTokens: MAX_CONTEXT_TOKENS,
+    estimatedTokens: Math.ceil(context.length / CHARS_PER_TOKEN),
+  });
+
+  const notice = "\n\n[Context truncated to fit the token budget.]";
+  return context.slice(0, maxChars - notice.length) + notice;
 }
 
 // Resolve which single document (if any) the user is asking about.
