@@ -12,11 +12,10 @@
     "test:watch": "vitest",
     "typecheck": "tsc",
     "db:push": "prisma db push",
-    "migrate:new": "prisma migrate dev",
+    "migrate:new": "prisma migrate dev --create-only",
     "migrate:latest": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
-    "postinstall": "prisma generate",
-    "run:ingest": "tsx ./app/server/scripts/ingest.ts"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@langchain/core": "^0.3.42",
