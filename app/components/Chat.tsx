@@ -5,6 +5,7 @@ import {
   useActionData,
   useNavigation,
   useNavigate,
+  useFetcher,
 } from "@remix-run/react";
 
 interface Message {
@@ -47,6 +48,7 @@ export default function Chat({
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
   const navigate = useNavigate();
+  const messagesFetcher = useFetcher<MessagesApiResponse>();
   const isSubmitting =
     navigation.state === "submitting" &&
     navigation.formData?.has("message") === true;
@@ -61,40 +63,37 @@ export default function Chat({
     }
   }, [actionData?.redirect, navigate]);
 
-  // Load existing messages when conversationId changes
+  // Load existing messages when the conversation changes (via Remix data layer).
   useEffect(() => {
-    const loadMessages = async () => {
-      if (initialConversationId) {
-        setConversationId(initialConversationId);
-        setMessages([]);
-        setStreamingResponse("");
-        try {
-          const response = await fetch(
-            `/api/conversation/${initialConversationId}/messages`
-          );
-          if (response.ok) {
-            const data: MessagesApiResponse = await response.json();
-            const loadedMessages = data.messages.map((msg: ApiMessage) => ({
-              role: msg.role,
-              content: msg.content,
-            }));
-            setMessages(loadedMessages);
-          }
-        } catch (error) {
-          console.error("Failed to load messages:", error);
-        }
-      } else {
-        // Fresh chat: generate the conversation id up front so an upload and the
-        // first message share it. Nothing is written to the DB until the first
-        // real action, so abandoning the page leaves no record behind.
-        setMessages([]);
-        setConversationId(crypto.randomUUID());
-        setStreamingResponse("");
-      }
-    };
-
-    loadMessages();
+    if (initialConversationId) {
+      setConversationId(initialConversationId);
+      setMessages([]);
+      setStreamingResponse("");
+      messagesFetcher.load(
+        `/api/conversation/${initialConversationId}/messages`
+      );
+    } else {
+      // Fresh chat: generate the conversation id up front so an upload and the
+      // first message share it. Nothing is written to the DB until the first
+      // real action, so abandoning the page leaves no record behind.
+      setMessages([]);
+      setConversationId(crypto.randomUUID());
+      setStreamingResponse("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialConversationId]);
+
+  // Sync loaded history into local message state.
+  useEffect(() => {
+    if (messagesFetcher.data?.messages) {
+      setMessages(
+        messagesFetcher.data.messages.map((msg: ApiMessage) => ({
+          role: msg.role,
+          content: msg.content,
+        }))
+      );
+    }
+  }, [messagesFetcher.data]);
 
   useEffect(() => {
     if (actionData?.message) {

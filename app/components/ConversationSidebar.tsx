@@ -1,6 +1,6 @@
 // Packages
-import { useState } from "react";
-import { Link, useNavigate } from "@remix-run/react";
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate, useFetcher } from "@remix-run/react";
 
 // Utils
 import { formatRelativeDate, truncateText } from "~/utils/format";
@@ -22,13 +22,30 @@ export default function ConversationSidebar({
   isMobile = false,
 }: ConversationSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [deletingConversationId, setDeletingConversationId] = useState<
-    string | null
-  >(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null
   );
   const navigate = useNavigate();
+  const deleteFetcher = useFetcher<{ success?: boolean; error?: string }>();
+  const pendingNavigateHome = useRef(false);
+
+  // Which conversation is mid-delete, read off the in-flight submission's action.
+  const deletingConversationId =
+    deleteFetcher.state !== "idle" && deleteFetcher.formAction
+      ? deleteFetcher.formAction.split("/").slice(-2)[0]
+      : null;
+
+  // After a successful delete of the conversation being viewed, go home. The sidebar
+  // list itself refreshes via Remix loader revalidation — no full page reload.
+  useEffect(() => {
+    if (deleteFetcher.state !== "idle") return;
+    if (deleteFetcher.data?.success && pendingNavigateHome.current) {
+      pendingNavigateHome.current = false;
+      navigate("/");
+    } else if (deleteFetcher.data?.error) {
+      alert("Failed to delete conversation. Please try again.");
+    }
+  }, [deleteFetcher.state, deleteFetcher.data, navigate]);
 
   // Ensure conversations is always an array
   const safeConversations = conversations || [];
@@ -40,36 +57,13 @@ export default function ConversationSidebar({
     setShowDeleteConfirm(conversationId);
   };
 
-  const handleDeleteConfirm = async (conversationId: string) => {
-    setDeletingConversationId(conversationId);
+  const handleDeleteConfirm = (conversationId: string) => {
     setShowDeleteConfirm(null);
-
-    try {
-      const response = await fetch(
-        `/api/conversation/${conversationId}/delete`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (response.ok) {
-        // If we're currently viewing the deleted conversation, redirect to home
-        if (currentConversationId === conversationId) {
-          navigate("/");
-        } else {
-          // Otherwise, just refresh the current page to update the sidebar
-          window.location.reload();
-        }
-      } else {
-        console.error("Failed to delete conversation");
-        alert("Failed to delete conversation. Please try again.");
-      }
-    } catch (error) {
-      console.error("Error deleting conversation:", error);
-      alert("Failed to delete conversation. Please try again.");
-    } finally {
-      setDeletingConversationId(null);
-    }
+    pendingNavigateHome.current = conversationId === currentConversationId;
+    deleteFetcher.submit(null, {
+      method: "delete",
+      action: `/api/conversation/${conversationId}/delete`,
+    });
   };
 
   const handleDeleteCancel = () => {
