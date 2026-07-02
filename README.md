@@ -79,4 +79,3 @@ An AI-powered chat application with RAG (Retrieval-Augmented Generation) capabil
 | `yarn migrate:new` | Create a new Prisma migration |
 | `yarn migrate:latest` | Apply pending migrations |
 | `yarn prisma:generate` | Regenerate Prisma client |
-| `yarn run:ingest` | Run document ingestion script |

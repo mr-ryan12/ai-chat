@@ -22,10 +22,11 @@ yarn typecheck        # TypeScript type check (tsc)
 yarn test             # Run unit tests once (vitest)
 yarn test:watch       # Run unit tests in watch mode (vitest)
 yarn prisma:generate  # Generate Prisma client (run after schema changes)
-yarn migrate:new      # Create a new migration (dev)
-yarn migrate:latest   # Apply pending migrations (deploy/CI)
+yarn migrate:new      # Create a migration WITHOUT applying (--create-only). Review the
+                      #   SQL and delete any drift that drops the manual GIN/HNSW indexes
+                      #   or the fts generated column, THEN run migrate:latest to apply.
+yarn migrate:latest   # Apply pending migrations (deploy/CI) — runs committed SQL, no diff
 yarn db:push          # Push schema to DB without migrations (prototyping only)
-yarn run:ingest       # Run document ingestion script (tsx ./app/server/scripts/ingest.ts)
 ```
 
 ## Architecture
@@ -45,13 +46,13 @@ This is a **Remix v2** app (with Vite) using file-based routing under `app/route
 
 `conversation.$id.tsx` action → `app/utils/chat.ts:createChatCompletion` → LangChain `ChatOpenAI` (gpt-4, temp 0) → optional tool call (`search_web` via SerpAPI, `get_time_in_timezone`) → saves user + assistant messages to DB via Prisma → returns word array for animated rendering.
 
-Document context is injected **only** when the user message contains "document", "text", or "content" (keyword gate, not semantic routing — a known limitation).
+Document context is injected when the message is document-related, detected by `wantsDocumentContext` (`app/server/utils/documentIntent.ts`) — broader than the old three-keyword gate.
 
 ### Core data flow: document ingestion
 
-`app/server/scripts/ingest.ts` → `documentService.ingestDocument()` → `MarkdownTextSplitter` (1000 chars, 200 overlap) → `OpenAIEmbeddings` (text-embedding-ada-002, 1536 dims) → raw SQL `INSERT` into `Document` and `DocumentChunk` tables with `::vector` casting. Retrieval uses cosine distance (`<->` operator), top-3 chunks.
+`upload-file.tsx` (action) → `extractTextFromFile` → `documentService.ingestDocument()` → `MarkdownTextSplitter` (1000 chars, 200 overlap) → `OpenAIEmbeddings` (text-embedding-3-small, 1536 dims) → raw SQL `INSERT` into `Document` and `DocumentChunk` tables with `::vector` casting. `DocumentChunk.fts` is a generated `tsvector` column.
 
-`HybridRetriever` in `documentService.ts` is a stub (returns `[]`).
+Retrieval: `queryDocuments()` uses layered routing (current conversation's docs → most-recent upload → user-wide), backed by `HybridRetriever` in `documentService.ts`, which combines pgvector similarity + Postgres full-text search fused with Reciprocal Rank Fusion.
 
 ### Database (Prisma + pgvector)
 
