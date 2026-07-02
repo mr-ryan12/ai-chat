@@ -2,17 +2,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useFetcher } from "@remix-run/react";
 
+// Utils
+import { formatRelativeDate } from "~/utils/format";
+
 // Types
 import type { DocumentListItem } from "~/types/document.types";
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-  const diffInHours = (Date.now() - date.getTime()) / (1000 * 60 * 60);
-  if (diffInHours < 1) return "Just now";
-  if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
-  if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
-  return date.toLocaleDateString();
-}
 
 export default function DocumentManager() {
   const [isOpen, setIsOpen] = useState(false);
@@ -194,7 +188,7 @@ export default function DocumentManager() {
                           {doc.title ?? "Untitled document"}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatDate(doc.createdAt)}
+                          {formatRelativeDate(doc.createdAt)}
                         </p>
                       </div>
 
