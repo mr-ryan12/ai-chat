@@ -15,7 +15,10 @@ import {
 // Types
 import { DocumentChunk } from "~/types/documentChunk.types";
 
-const embeddings = new OpenAIEmbeddings();
+// text-embedding-3-small: 1536 dims (matches the vector(1536) column), a quality
+// upgrade over the old ada-002 default at ~5x lower cost.
+const EMBEDDING_MODEL = "text-embedding-3-small";
+const embeddings = new OpenAIEmbeddings({ model: EMBEDDING_MODEL });
 
 // Retrieval limits. MAX_CHUNKS_PER_QUERY is the hard cap required by the DB rules (≤ 10).
 const MAX_CHUNKS_PER_QUERY = 10;
