@@ -165,10 +165,10 @@ export default function ConversationSidebar({
               <div key={conversation.id} className="relative group">
                 <Link
                   to={`/conversation/${conversation.id}`}
-                  className={`block w-full text-left p-3 rounded-lg transition-all duration-200 ${
+                  className={`block w-full text-left p-3 rounded-lg border transition-colors duration-200 ${
                     currentConversationId === conversation.id
-                      ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                      ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                      : "border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   }`}
                   aria-current={currentConversationId === conversation.id ? "page" : undefined}
                 >
