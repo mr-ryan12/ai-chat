@@ -6,7 +6,9 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
+    // Default to node; component tests opt into jsdom via a per-file
+    // `// @vitest-environment jsdom` pragma.
     environment: "node",
-    include: ["app/**/*.test.ts"],
+    include: ["app/**/*.test.{ts,tsx}"],
   },
 });
