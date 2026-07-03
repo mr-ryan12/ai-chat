@@ -24,6 +24,7 @@ interface ActionData {
 
 interface ChatProps {
   conversationId?: string;
+  onConversationIdChange?: (id: string) => void;
 }
 
 interface ApiMessage {
@@ -37,6 +38,7 @@ interface MessagesApiResponse {
 
 export default function Chat({
   conversationId: initialConversationId,
+  onConversationIdChange,
 }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -49,12 +51,25 @@ export default function Chat({
   const navigation = useNavigation();
   const navigate = useNavigate();
   const messagesFetcher = useFetcher<MessagesApiResponse>();
+  const uploadFetcher = useFetcher<{ success?: boolean; error?: string }>();
   const isSubmitting =
     navigation.state === "submitting" &&
     navigation.formData?.has("message") === true;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  // The upload goes through the Remix data layer — derive the in-flight flag from
+  // the fetcher instead of tracking a separate boolean.
+  const uploading = uploadFetcher.state !== "idle";
+  // Apply fetched history only on the FIRST load of a conversation. Remix
+  // revalidates fetcher loads after every action, so re-applying that DB snapshot
+  // mid-stream would collide with the optimistic assistant append (duplicate reply).
+  const historyLoadedRef = useRef(false);
+  // Commit each assistant response at most once, even if the effect re-runs.
+  const committedActionDataRef = useRef<ActionData | null>(null);
+  // `actionData` is route-scoped and outlives a keyed remount of this component, so
+  // a reset chat would otherwise replay the previous response. Ignore whatever was
+  // already present at mount; only react to responses that arrive afterwards.
+  const mountActionDataRef = useRef(actionData);
 
   // Handle redirect if conversation ID changed
   useEffect(() => {
@@ -63,12 +78,21 @@ export default function Chat({
     }
   }, [actionData?.redirect, navigate]);
 
+  // Report the active conversation id up so the route can track it — e.g. to reset
+  // this chat when that conversation is deleted. Fires for the client-generated id
+  // of a fresh chat and for any later change.
+  useEffect(() => {
+    if (conversationId) onConversationIdChange?.(conversationId);
+  }, [conversationId, onConversationIdChange]);
+
   // Load existing messages when the conversation changes (via Remix data layer).
   useEffect(() => {
     if (initialConversationId) {
       setConversationId(initialConversationId);
       setMessages([]);
       setStreamingResponse("");
+      // New conversation context: allow the next fetched history to apply once.
+      historyLoadedRef.current = false;
       messagesFetcher.load(
         `/api/conversation/${initialConversationId}/messages`
       );
@@ -83,19 +107,23 @@ export default function Chat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialConversationId]);
 
-  // Sync loaded history into local message state.
+  // Sync loaded history into local message state — but only for the initial load
+  // of a conversation. Post-action revalidations of this fetcher return a DB
+  // snapshot that would overwrite (and duplicate against) the optimistic updates.
   useEffect(() => {
-    if (messagesFetcher.data?.messages) {
-      setMessages(
-        messagesFetcher.data.messages.map((msg: ApiMessage) => ({
-          role: msg.role,
-          content: msg.content,
-        }))
-      );
-    }
+    if (!messagesFetcher.data?.messages) return;
+    if (historyLoadedRef.current) return;
+    historyLoadedRef.current = true;
+    setMessages(
+      messagesFetcher.data.messages.map((msg: ApiMessage) => ({
+        role: msg.role,
+        content: msg.content,
+      }))
+    );
   }, [messagesFetcher.data]);
 
   useEffect(() => {
+    if (actionData === mountActionDataRef.current) return;
     if (actionData?.message) {
       const newMessage: Message = {
         role: "user",
@@ -110,7 +138,11 @@ export default function Chat({
   }, [actionData]);
 
   useEffect(() => {
+    if (actionData === mountActionDataRef.current) return;
     if (actionData?.words && actionData.words.length > 0) {
+      // Guard against committing the same response twice if this effect re-runs
+      // (e.g. a revalidation re-renders mid-stream). One actionData → one reply.
+      if (committedActionDataRef.current === actionData) return;
       setStreamingResponse("");
       let currentIndex = 0;
       const interval = setInterval(() => {
@@ -123,6 +155,7 @@ export default function Chat({
           currentIndex++;
         } else {
           clearInterval(interval);
+          committedActionDataRef.current = actionData;
           const newMessage: Message = {
             role: "assistant",
             content: actionData.response || "",
@@ -134,7 +167,7 @@ export default function Chat({
 
       return () => clearInterval(interval);
     }
-  }, [actionData?.words, actionData?.response]);
+  }, [actionData]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -155,35 +188,36 @@ export default function Chat({
     return () => clearTimeout(timeoutId);
   }, [uploadMessage]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Surface the upload result once the fetcher settles. The action returns
+  // { success: true } or { error }; the transient banner (auto-cleared above)
+  // keeps the same copy the manual flow used.
+  useEffect(() => {
+    if (uploadFetcher.state !== "idle" || !uploadFetcher.data) return;
+    setUploadMessage(
+      uploadFetcher.data.success
+        ? "File uploaded and ingested successfully!"
+        : uploadFetcher.data.error ?? "Upload failed"
+    );
+  }, [uploadFetcher.state, uploadFetcher.data]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploading(true);
     setUploadMessage(null);
     const formData = new FormData();
     formData.append("file", file);
     if (conversationId) {
       formData.append("conversationId", conversationId);
     }
-    try {
-      const res = await fetch("/upload-file", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (res.ok) {
-        setUploadMessage("File uploaded and ingested successfully!");
-      } else {
-        const body = await res.json().catch(() => null);
-        setUploadMessage(body?.error ?? "Upload failed");
-      }
-    } catch (err) {
-      console.error(err);
-      setUploadMessage("Upload failed");
-    } finally {
-      setUploading(false);
-      e.target.value = "";
-    }
+    // multipart/form-data is required for the file part — Remix otherwise
+    // URL-encodes the body, which would drop the upload.
+    uploadFetcher.submit(formData, {
+      method: "post",
+      action: "/upload-file",
+      encType: "multipart/form-data",
+    });
+    // Safe to reset now: submit() has already captured the FormData we built.
+    e.target.value = "";
   };
 
   return (
