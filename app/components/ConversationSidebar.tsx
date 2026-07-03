@@ -20,6 +20,7 @@ interface ConversationSidebarProps {
 export default function ConversationSidebar({
   conversations,
   currentConversationId,
+  onNewConversation,
   onActiveConversationDeleted,
   isMobile = false,
 }: ConversationSidebarProps) {
@@ -88,8 +89,9 @@ export default function ConversationSidebar({
           )}
           <div className="flex items-center space-x-2">
             {!isCollapsed && (
-              <Link
-                to="/"
+              <button
+                type="button"
+                onClick={onNewConversation}
                 className="flex items-center btn-primary text-sm px-3 py-1.5"
               >
                 <svg
@@ -106,7 +108,7 @@ export default function ConversationSidebar({
                   />
                 </svg>
                 New
-              </Link>
+              </button>
             )}
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
