@@ -1,6 +1,6 @@
 // Packages
 import { data, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 
 // Components
@@ -69,6 +69,15 @@ export default function Index() {
   const [sidebarConversations, setSidebarConversations] =
     useState(conversations);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  // The index chat is a draft: Chat generates its own conversation id and reports
+  // it up here. Tracking it lets the sidebar match a delete against the open chat,
+  // and bumping `chatResetKey` remounts Chat as a fresh draft when it's deleted.
+  const [activeChatId, setActiveChatId] = useState("");
+  const [chatResetKey, setChatResetKey] = useState(0);
+  const handleChatConversationId = useCallback(
+    (id: string) => setActiveChatId(id),
+    []
+  );
 
   // Update conversations when they change
   useEffect(() => {
@@ -110,8 +119,12 @@ export default function Index() {
         `}>
           <ConversationSidebar
             conversations={sidebarConversations}
+            currentConversationId={activeChatId}
             onNewConversation={handleNewConversation}
             onConversationSelect={handleConversationSelect}
+            onActiveConversationDeleted={() =>
+              setChatResetKey((key) => key + 1)
+            }
             isMobile={true}
           />
         </div>
@@ -120,7 +133,10 @@ export default function Index() {
         <main className="flex-1 flex flex-col min-w-0">
           <div className="flex-1 p-3 md:p-6">
             <div className="card h-full">
-              <Chat />
+              <Chat
+                key={chatResetKey}
+                onConversationIdChange={handleChatConversationId}
+              />
             </div>
           </div>
         </main>

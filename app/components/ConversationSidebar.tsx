@@ -1,6 +1,6 @@
 // Packages
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate, useFetcher } from "@remix-run/react";
+import { Link, useFetcher } from "@remix-run/react";
 
 // Utils
 import { formatRelativeDate, truncateText } from "~/utils/format";
@@ -13,21 +13,22 @@ interface ConversationSidebarProps {
   currentConversationId?: string;
   onNewConversation: () => void;
   onConversationSelect: (id: string) => void;
+  onActiveConversationDeleted?: () => void;
   isMobile?: boolean;
 }
 
 export default function ConversationSidebar({
   conversations,
   currentConversationId,
+  onActiveConversationDeleted,
   isMobile = false,
 }: ConversationSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null
   );
-  const navigate = useNavigate();
   const deleteFetcher = useFetcher<{ success?: boolean; error?: string }>();
-  const pendingNavigateHome = useRef(false);
+  const deletedActiveRef = useRef(false);
 
   // Which conversation is mid-delete, read off the in-flight submission's action.
   const deletingConversationId =
@@ -35,17 +36,18 @@ export default function ConversationSidebar({
       ? deleteFetcher.formAction.split("/").slice(-2)[0]
       : null;
 
-  // After a successful delete of the conversation being viewed, go home. The sidebar
-  // list itself refreshes via Remix loader revalidation — no full page reload.
+  // After a successful delete of the conversation currently being viewed, let the
+  // route reset the chat (navigate home, or start a fresh draft). The sidebar list
+  // refreshes via Remix loader revalidation — no full page reload.
   useEffect(() => {
     if (deleteFetcher.state !== "idle") return;
-    if (deleteFetcher.data?.success && pendingNavigateHome.current) {
-      pendingNavigateHome.current = false;
-      navigate("/");
+    if (deleteFetcher.data?.success && deletedActiveRef.current) {
+      deletedActiveRef.current = false;
+      onActiveConversationDeleted?.();
     } else if (deleteFetcher.data?.error) {
       alert("Failed to delete conversation. Please try again.");
     }
-  }, [deleteFetcher.state, deleteFetcher.data, navigate]);
+  }, [deleteFetcher.state, deleteFetcher.data, onActiveConversationDeleted]);
 
   // Ensure conversations is always an array
   const safeConversations = conversations || [];
@@ -59,7 +61,7 @@ export default function ConversationSidebar({
 
   const handleDeleteConfirm = (conversationId: string) => {
     setShowDeleteConfirm(null);
-    pendingNavigateHome.current = conversationId === currentConversationId;
+    deletedActiveRef.current = conversationId === currentConversationId;
     deleteFetcher.submit(null, {
       method: "delete",
       action: `/api/conversation/${conversationId}/delete`,

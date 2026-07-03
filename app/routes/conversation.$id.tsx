@@ -169,6 +169,7 @@ export default function ConversationPage() {
             currentConversationId={conversationId || ""}
             onNewConversation={handleNewConversation}
             onConversationSelect={handleConversationSelect}
+            onActiveConversationDeleted={() => navigate("/")}
             isMobile={true}
           />
         </div>
