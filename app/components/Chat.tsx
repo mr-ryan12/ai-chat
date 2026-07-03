@@ -46,6 +46,9 @@ export default function Chat({
     initialConversationId || ""
   );
   const [streamingResponse, setStreamingResponse] = useState("");
+  // True while a conversation's history is being fetched — keeps the empty-state
+  // welcome from flashing between clearing messages and the history arriving.
+  const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
@@ -91,8 +94,10 @@ export default function Chat({
       setConversationId(initialConversationId);
       setMessages([]);
       setStreamingResponse("");
-      // New conversation context: allow the next fetched history to apply once.
+      // New conversation context: allow the next fetched history to apply once, and
+      // suppress the empty-state until it arrives.
       historyLoadedRef.current = false;
+      setLoadingHistory(true);
       messagesFetcher.load(
         `/api/conversation/${initialConversationId}/messages`
       );
@@ -103,6 +108,7 @@ export default function Chat({
       setMessages([]);
       setConversationId(crypto.randomUUID());
       setStreamingResponse("");
+      setLoadingHistory(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialConversationId]);
@@ -112,6 +118,8 @@ export default function Chat({
   // snapshot that would overwrite (and duplicate against) the optimistic updates.
   useEffect(() => {
     if (!messagesFetcher.data?.messages) return;
+    // History has arrived (or a revalidation returned) — reveal the conversation.
+    setLoadingHistory(false);
     if (historyLoadedRef.current) return;
     historyLoadedRef.current = true;
     setMessages(
@@ -124,16 +132,10 @@ export default function Chat({
 
   useEffect(() => {
     if (actionData === mountActionDataRef.current) return;
-    if (actionData?.message) {
-      const newMessage: Message = {
-        role: "user",
-        content: actionData.message,
-      };
-      setMessages((prev) => [...prev, newMessage]);
-      if (actionData.conversationId) {
-        setConversationId(actionData.conversationId);
-      }
-      setInput("");
+    // The user message is rendered optimistically on submit (handleSubmit); here we
+    // only sync the server-assigned conversation id once the action returns.
+    if (actionData?.conversationId) {
+      setConversationId(actionData.conversationId);
     }
   }, [actionData]);
 
@@ -220,11 +222,22 @@ export default function Chat({
     e.target.value = "";
   };
 
+  // Render the user's message immediately (optimistic) rather than waiting for the
+  // action to return — otherwise it only appears once the response is ready. Remix
+  // still submits the form; clearing `input` here doesn't affect the in-flight
+  // FormData (already captured from the DOM by the time React re-renders).
+  const handleSubmit = () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+    setInput("");
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-200px)] max-w-4xl mx-auto">
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto mb-4 md:mb-6 space-y-4 md:space-y-6 px-2 md:px-4">
-        {messages.length === 0 && (
+        {messages.length === 0 && !loadingHistory && !isSubmitting && (
           <div className="text-center py-8 md:py-12">
             <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg
@@ -413,7 +426,11 @@ export default function Chat({
 
       {/* Input Container */}
       <div className="relative border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 md:p-4 rounded-b-xl">
-        <Form method="post" className="flex gap-2 md:gap-3 items-end">
+        <Form
+          method="post"
+          onSubmit={handleSubmit}
+          className="flex gap-2 md:gap-3 items-end"
+        >
           <input type="hidden" name="conversationId" value={conversationId} />
 
           {/* File Upload Button */}

@@ -83,6 +83,37 @@ describe("Chat streaming + reset", () => {
     expect(screen.getByText("first question")).toBeInTheDocument();
   });
 
+  it("shows the user's message immediately, before the response arrives", async () => {
+    // Hold the action so the response can't arrive; the user message must still show.
+    let releaseAction!: () => void;
+    const actionGate = new Promise<void>((resolve) => {
+      releaseAction = resolve;
+    });
+    const Stub = createRemixStub([
+      {
+        path: "/",
+        Component: () => <Chat />,
+        action: async ({ request }) => {
+          const form = await request.formData();
+          await actionGate;
+          return actionReply(String(form.get("message") ?? ""));
+        },
+      },
+    ]);
+    render(<Stub initialEntries={["/"]} />);
+
+    typeAndSend("instant question");
+
+    // Rendered optimistically while the action is still pending.
+    expect(screen.getByText("instant question")).toBeInTheDocument();
+    expect(screen.queryByText(RESPONSE)).not.toBeInTheDocument();
+
+    releaseAction();
+    await waitFor(() =>
+      expect(screen.getByText(RESPONSE)).toBeInTheDocument()
+    );
+  });
+
   it("does not replay the persisted response after a keyed remount (chat reset)", async () => {
     // Mirrors the index route: bumping the key remounts Chat while the previous
     // response still lives in route-scoped actionData.

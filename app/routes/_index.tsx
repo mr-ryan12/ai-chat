@@ -86,7 +86,9 @@ export default function Index() {
 
   const handleNewConversation = () => {
     setIsMobileSidebarOpen(false);
-    navigate(".", { replace: true });
+    // Already on the index route, so navigating "." wouldn't remount Chat — bump the
+    // key to start a fresh draft (clears the in-progress conversation's messages).
+    setChatResetKey((key) => key + 1);
   };
 
   const handleConversationSelect = (id: string) => {
