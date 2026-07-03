@@ -10,6 +10,9 @@ import type { DocumentListItem } from "~/types/document.types";
 
 export default function DocumentManager() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  // Delete error is held in state (not derived) so it can be cleared when the dialog
+  // opens/closes — otherwise a past failure's banner would reappear on reopen.
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Native <dialog> via showModal(): the browser renders it in the top layer
   // (escapes ancestor stacking/containing-block traps — no portal needed), traps
@@ -27,8 +30,6 @@ export default function DocumentManager() {
   const documents = listFetcher.data?.documents ?? [];
   const hasLoaded = listFetcher.data !== undefined;
   const loadError = listFetcher.data?.error ?? null;
-  const deleteError =
-    deleteFetcher.state === "idle" ? deleteFetcher.data?.error ?? null : null;
 
   // Which row is mid-delete, read off the in-flight submission's action path.
   const activeDeletePath = deleteFetcher.formAction;
@@ -39,6 +40,7 @@ export default function DocumentManager() {
 
   const open = () => {
     setConfirmId(null);
+    setDeleteError(null);
     listFetcher.load("/api/documents");
     dialogRef.current?.showModal();
     // showModal() makes the background inert but does not lock scroll — do it here.
@@ -51,6 +53,7 @@ export default function DocumentManager() {
   // covers Escape, backdrop click, and the close button via the single native `close`.
   const handleClose = () => {
     setConfirmId(null);
+    setDeleteError(null);
     document.body.style.overflow = "";
   };
 
@@ -74,13 +77,13 @@ export default function DocumentManager() {
     if (deleteFetcher.state === "submitting") {
       reloadedForDelete.current = false;
     }
-    if (
-      deleteFetcher.state === "idle" &&
-      deleteFetcher.data?.success &&
-      !reloadedForDelete.current
-    ) {
-      reloadedForDelete.current = true;
-      listFetcher.load("/api/documents");
+    if (deleteFetcher.state === "idle" && deleteFetcher.data) {
+      // Reflect the latest delete result (clears on success, shows the message on error).
+      setDeleteError(deleteFetcher.data.error ?? null);
+      if (deleteFetcher.data.success && !reloadedForDelete.current) {
+        reloadedForDelete.current = true;
+        listFetcher.load("/api/documents");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deleteFetcher.state, deleteFetcher.data]);

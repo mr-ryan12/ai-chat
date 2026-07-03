@@ -66,13 +66,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // interaction in the session. Done only after validation/dedup so a rejected
     // upload never spawns an empty conversation.
     let conversationId: string | null = null;
+    // Only set when THIS request created the conversation, so a later ingestion
+    // failure can roll it back without deleting a pre-existing chat.
+    let createdConversationId: string | null = null;
     if (typeof conversationIdInput === "string" && conversationIdInput !== "") {
+      const existing = await prisma.conversation.findFirst({
+        where: { id: conversationIdInput, userId },
+        select: { id: true },
+      });
       const conversation = await ensureConversation(
         conversationIdInput,
         userId,
         originalname,
       );
       conversationId = conversation.id;
+      if (!existing) {
+        createdConversationId = conversation.id;
+      }
     }
 
     // Generate secure filename to prevent path traversal
@@ -87,6 +97,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { title: originalname, contentHash },
         conversationId,
       );
+    } catch (ingestError) {
+      // Ingestion failed after we created the conversation for this upload — remove
+      // the empty orphan so it doesn't linger in the sidebar. Only delete a row we
+      // created here; never a pre-existing conversation.
+      if (createdConversationId) {
+        await prisma.conversation
+          .delete({ where: { id: createdConversationId } })
+          .catch(() => {});
+      }
+      throw ingestError;
     } finally {
       // Always cleanup temp file
       try {

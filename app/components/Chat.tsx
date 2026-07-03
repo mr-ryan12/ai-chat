@@ -73,6 +73,11 @@ export default function Chat({
   // a reset chat would otherwise replay the previous response. Ignore whatever was
   // already present at mount; only react to responses that arrive afterwards.
   const mountActionDataRef = useRef(actionData);
+  // The in-flight streaming interval, so we can cancel it when the conversation
+  // changes (otherwise the previous chat's reply lands in the newly-opened one).
+  const streamIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The optimistically-appended message text, so a failed send can be rolled back.
+  const pendingSubmitRef = useRef<string | null>(null);
 
   // Handle redirect if conversation ID changed
   useEffect(() => {
@@ -90,6 +95,12 @@ export default function Chat({
 
   // Load existing messages when the conversation changes (via Remix data layer).
   useEffect(() => {
+    // Cancel any streaming animation from the previous conversation so its reply
+    // can't get appended into the one we're switching to.
+    if (streamIntervalRef.current) {
+      clearInterval(streamIntervalRef.current);
+      streamIntervalRef.current = null;
+    }
     if (initialConversationId) {
       setConversationId(initialConversationId);
       setMessages([]);
@@ -117,9 +128,14 @@ export default function Chat({
   // of a conversation. Post-action revalidations of this fetcher return a DB
   // snapshot that would overwrite (and duplicate against) the optimistic updates.
   useEffect(() => {
-    if (!messagesFetcher.data?.messages) return;
-    // History has arrived (or a revalidation returned) — reveal the conversation.
+    // Nothing has come back yet — keep showing the loading state.
+    if (!messagesFetcher.data) return;
+    // The fetch has settled (success OR an error-shaped response like 404/500) —
+    // reveal the conversation so the empty-state can render instead of a permanent
+    // blank when history can't be loaded.
     setLoadingHistory(false);
+    if (!messagesFetcher.data.messages) return;
+    // Apply history only on the FIRST load; ignore post-action revalidations.
     if (historyLoadedRef.current) return;
     historyLoadedRef.current = true;
     setMessages(
@@ -132,8 +148,24 @@ export default function Chat({
 
   useEffect(() => {
     if (actionData === mountActionDataRef.current) return;
-    // The user message is rendered optimistically on submit (handleSubmit); here we
-    // only sync the server-assigned conversation id once the action returns.
+    if (actionData?.error && pendingSubmitRef.current) {
+      // The send failed: roll back the optimistic user message and restore the text
+      // to the input so it can be retried (the old code preserved it on error).
+      const failed = pendingSubmitRef.current;
+      pendingSubmitRef.current = null;
+      setMessages((prev) =>
+        prev.length > 0 &&
+        prev[prev.length - 1].role === "user" &&
+        prev[prev.length - 1].content === failed
+          ? prev.slice(0, -1)
+          : prev
+      );
+      setInput((cur) => cur || failed);
+      return;
+    }
+    // Success: the optimistic message is confirmed; sync the server conversation id.
+    // (The user message is rendered optimistically on submit in handleSubmit.)
+    pendingSubmitRef.current = null;
     if (actionData?.conversationId) {
       setConversationId(actionData.conversationId);
     }
@@ -157,6 +189,7 @@ export default function Chat({
           currentIndex++;
         } else {
           clearInterval(interval);
+          streamIntervalRef.current = null;
           committedActionDataRef.current = actionData;
           const newMessage: Message = {
             role: "assistant",
@@ -166,6 +199,7 @@ export default function Chat({
           setStreamingResponse("");
         }
       }, 50); // 50ms delay between words
+      streamIntervalRef.current = interval;
 
       return () => clearInterval(interval);
     }
@@ -228,8 +262,11 @@ export default function Chat({
   // FormData (already captured from the DOM by the time React re-renders).
   const handleSubmit = () => {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    // Don't append while history is still loading — the in-flight initial load would
+    // overwrite the optimistic message (the input is also disabled in this state).
+    if (!trimmed || loadingHistory) return;
     setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+    pendingSubmitRef.current = trimmed;
     setInput("");
   };
 
@@ -476,11 +513,11 @@ export default function Chat({
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your message..."
               className="input-modern w-full pr-10 md:pr-12 text-sm md:text-base"
-              disabled={isSubmitting}
+              disabled={isSubmitting || loadingHistory}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  if (input.trim() && !isSubmitting) {
+                  if (input.trim() && !isSubmitting && !loadingHistory) {
                     e.currentTarget.form?.requestSubmit();
                   }
                 }
@@ -488,7 +525,7 @@ export default function Chat({
             />
             <button
               type="submit"
-              disabled={isSubmitting || !input.trim()}
+              disabled={isSubmitting || loadingHistory || !input.trim()}
               className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2 btn-primary p-1.5 md:p-2 rounded-lg"
             >
               <svg

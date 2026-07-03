@@ -114,6 +114,29 @@ describe("Chat streaming + reset", () => {
     );
   });
 
+  it("rolls back the optimistic message and restores the input when the send fails", async () => {
+    const Stub = createRemixStub([
+      {
+        path: "/",
+        Component: () => <Chat />,
+        action: () => ({ error: "Failed to process message" }),
+      },
+    ]);
+    render(<Stub initialEntries={["/"]} />);
+
+    typeAndSend("will fail");
+
+    // Once the error comes back, the optimistic bubble is removed and the text is
+    // restored to the input so it can be retried.
+    await waitFor(() =>
+      expect(screen.getByText("Failed to process message")).toBeInTheDocument()
+    );
+    expect(screen.queryByText("will fail")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Type your message...")).toHaveValue(
+      "will fail"
+    );
+  });
+
   it("does not replay the persisted response after a keyed remount (chat reset)", async () => {
     // Mirrors the index route: bumping the key remounts Chat while the previous
     // response still lives in route-scoped actionData.
@@ -213,5 +236,29 @@ describe("Chat history revalidation", () => {
     // Give any pending revalidation a chance to (incorrectly) re-apply.
     await new Promise((r) => setTimeout(r, 150));
     expect(screen.getAllByText(RESPONSE)).toHaveLength(1);
+  });
+
+  it("falls back to the empty state (not a permanent blank) when history fails to load", async () => {
+    const Stub = createRemixStub([
+      {
+        path: "/conversation/:id",
+        Component: () => <Chat conversationId="conv-1" />,
+        action: async ({ request }) => {
+          const form = await request.formData();
+          return actionReply(String(form.get("message") ?? ""));
+        },
+      },
+      {
+        // Simulates a 404/500 — the route returns an error shape, no `messages`.
+        path: "/api/conversation/:id/messages",
+        loader: () => ({ error: "Conversation not found" }),
+      },
+    ]);
+    render(<Stub initialEntries={["/conversation/conv-1"]} />);
+
+    // Without the loadingHistory-on-settle fix this would hang forever (blank chat).
+    await waitFor(() =>
+      expect(screen.getByText("Welcome to ThreadMind")).toBeInTheDocument()
+    );
   });
 });

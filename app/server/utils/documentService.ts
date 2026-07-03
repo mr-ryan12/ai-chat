@@ -223,12 +223,20 @@ export async function queryDocuments(
   );
 
   let chunks: { content: string }[];
+  let wholeDocTruncated = false;
   if (targetDocumentId && wantsFullDocument(query)) {
-    // Whole-document intent (summary): return the target doc's chunks in reading order.
-    chunks = await getDocumentChunksInOrder(targetDocumentId, MAX_CHUNKS_PER_QUERY);
+    // Whole-document intent (summary): return the target doc's chunks in reading
+    // order. Fetch one past the cap to detect (and disclose) truncation, since the
+    // hard chunk cap can silently drop the tail of a long document otherwise.
+    const ordered = await getDocumentChunksInOrder(
+      targetDocumentId,
+      MAX_CHUNKS_PER_QUERY + 1
+    );
+    wholeDocTruncated = ordered.length > MAX_CHUNKS_PER_QUERY;
+    chunks = ordered.slice(0, MAX_CHUNKS_PER_QUERY);
   } else {
     // Hybrid search — scoped to the target document when one was resolved, else
-    // across all of the user's documents.
+    // across all of the user's documents. Already bounded by SEMANTIC_TOP_K (≤ cap).
     chunks = await hybridRetriever.retrieve(
       query,
       { userId, documentId: targetDocumentId ?? undefined },
@@ -236,12 +244,15 @@ export async function queryDocuments(
     );
   }
 
-  const topChunks = chunks.slice(0, MAX_CHUNKS_PER_QUERY);
-  if (topChunks.length === 0) {
+  if (chunks.length === 0) {
     return NO_CONTENT_MESSAGE;
   }
 
-  const context = topChunks.map((chunk) => chunk.content).join("\n\n");
+  let context = chunks.map((chunk) => chunk.content).join("\n\n");
+  if (wholeDocTruncated) {
+    // Never present a partial document as the whole thing — disclose the cap.
+    context += `\n\n[Note: only the first ${MAX_CHUNKS_PER_QUERY} sections of the document are shown; it is longer than this summary covers.]`;
+  }
   return enforceContextBudget(context, userId);
 }
 

@@ -30,6 +30,10 @@ export default function ConversationSidebar({
   );
   const deleteFetcher = useFetcher<{ success?: boolean; error?: string }>();
   const deletedActiveRef = useRef(false);
+  // Whether the current settled delete result has already been handled. Guards
+  // against re-handling on unrelated re-renders (the effect's callback dep changes
+  // identity each render), which would otherwise loop the failure alert().
+  const handledResultRef = useRef(false);
 
   // Which conversation is mid-delete, read off the in-flight submission's action.
   const deletingConversationId =
@@ -41,11 +45,16 @@ export default function ConversationSidebar({
   // route reset the chat (navigate home, or start a fresh draft). The sidebar list
   // refreshes via Remix loader revalidation — no full page reload.
   useEffect(() => {
-    if (deleteFetcher.state !== "idle") return;
-    if (deleteFetcher.data?.success && deletedActiveRef.current) {
+    if (deleteFetcher.state !== "idle") {
+      handledResultRef.current = false; // a new submission is in flight
+      return;
+    }
+    if (!deleteFetcher.data || handledResultRef.current) return;
+    handledResultRef.current = true;
+    if (deleteFetcher.data.success && deletedActiveRef.current) {
       deletedActiveRef.current = false;
       onActiveConversationDeleted?.();
-    } else if (deleteFetcher.data?.error) {
+    } else if (deleteFetcher.data.error) {
       alert("Failed to delete conversation. Please try again.");
     }
   }, [deleteFetcher.state, deleteFetcher.data, onActiveConversationDeleted]);
