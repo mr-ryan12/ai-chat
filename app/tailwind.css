@@ -108,3 +108,60 @@
     animation: error-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 }
+
+/*
+ * Native <dialog> open/close transition — a Radix-style fade + subtle zoom for
+ * the card and a fade for the ::backdrop. `allow-discrete` lets `display` and
+ * `overlay` animate, so the CLOSE transition plays before the dialog leaves the
+ * top layer; `@starting-style` provides the pre-open state for the OPEN
+ * transition. Progressive enhancement: browsers without these features simply
+ * show/hide the dialog instantly. `display: flex` (not a Tailwind utility) is set
+ * only when [open], so the closed dialog stays `display: none` via the UA sheet.
+ */
+.dialog-animated {
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity 200ms ease-out,
+    transform 200ms ease-out,
+    overlay 200ms ease-out allow-discrete,
+    display 200ms ease-out allow-discrete;
+}
+
+.dialog-animated[open] {
+  display: flex;
+  opacity: 1;
+  transform: scale(1);
+}
+
+@starting-style {
+  .dialog-animated[open] {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.dialog-animated::backdrop {
+  background-color: rgb(0 0 0 / 0);
+  transition:
+    background-color 200ms ease-out,
+    overlay 200ms ease-out allow-discrete,
+    display 200ms ease-out allow-discrete;
+}
+
+.dialog-animated[open]::backdrop {
+  background-color: rgb(0 0 0 / 0.5);
+}
+
+@starting-style {
+  .dialog-animated[open]::backdrop {
+    background-color: rgb(0 0 0 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-animated,
+  .dialog-animated::backdrop {
+    transition: none;
+  }
+}

@@ -128,7 +128,7 @@ export default function DocumentManager() {
         onClose={handleClose}
         onClick={handleBackdropClick}
         aria-label="Your documents"
-        className="hidden open:flex fixed inset-0 z-50 w-full max-w-none h-full max-h-none items-center justify-center bg-transparent p-4 backdrop:bg-black/50"
+        className="dialog-animated fixed inset-0 z-50 w-full max-w-none h-full max-h-none items-center justify-center bg-transparent p-4"
       >
         <div className="w-full max-w-lg max-h-[80vh] flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
           {/* Header */}
