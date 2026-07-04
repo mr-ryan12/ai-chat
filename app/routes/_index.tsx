@@ -1,10 +1,5 @@
 // Packages
-import {
-  data,
-  redirect,
-  ActionFunctionArgs,
-  LoaderFunctionArgs,
-} from "@remix-run/node";
+import { data, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useState, useEffect, useCallback } from "react";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 
@@ -45,17 +40,21 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    const { conversationId: newConversationId } = await createChatCompletion(
-      message,
-      conversationId,
-      userId
-    );
+    const {
+      response,
+      words,
+      conversationId: newConversationId,
+    } = await createChatCompletion(message, conversationId, userId);
 
-    // The index chat is a draft; once the first message persists the conversation,
-    // move to its canonical URL so the id shows in the address bar and a refresh
-    // reloads the real conversation instead of starting a new draft. Subsequent
-    // messages are sent from the /conversation/:id route (which streams normally).
-    return redirect(`/conversation/${newConversationId}`);
+    // Return the response (not a redirect) so the draft chat streams the first reply
+    // in place. Chat navigates to /conversation/:id itself once that stream finishes,
+    // which keeps the animation while still moving the URL to the canonical route.
+    return data({
+      message,
+      response,
+      words,
+      conversationId: newConversationId,
+    });
   } catch (error) {
     logger.logError(error, {
       method: request.method,

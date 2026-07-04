@@ -28,13 +28,15 @@ const RESPONSE = "Hello world";
 const WORDS = ["hello", "world"];
 
 // A message reply that the stub action returns; kept short so streaming (50ms/word)
-// settles quickly under real timers.
+// settles quickly under real timers. No `conversationId` here on purpose: a draft
+// Chat navigates to /conversation/:id once it receives one, and these tests aren't
+// exercising that navigation (it has its own test below), so omitting it keeps them
+// focused and free of an incidental route change.
 function actionReply(message: string) {
   return {
     message,
     response: RESPONSE,
     words: WORDS,
-    conversationId: "conv-1",
   };
 }
 
@@ -179,6 +181,39 @@ describe("Chat streaming + reset", () => {
     await new Promise((r) => setTimeout(r, WORDS.length * 50 + 100));
     expect(screen.queryByText(RESPONSE)).not.toBeInTheDocument();
     expect(screen.queryByText("weather in denver")).not.toBeInTheDocument();
+  });
+
+  it("navigates a draft to /conversation/:id after the first reply finishes streaming", async () => {
+    // A brand-new chat (no conversationId) streams its first reply in place, then
+    // moves to the conversation's canonical URL — so the first message still animates
+    // AND the address bar updates. The reply carries the server-assigned id.
+    const Stub = createRemixStub([
+      {
+        path: "/",
+        Component: () => <Chat />,
+        action: async ({ request }) => {
+          const form = await request.formData();
+          return {
+            ...actionReply(String(form.get("message") ?? "")),
+            conversationId: "conv-new",
+          };
+        },
+      },
+      {
+        path: "/conversation/:id",
+        Component: () => <div>conversation route</div>,
+      },
+    ]);
+    render(<Stub initialEntries={["/"]} />);
+
+    typeAndSend("first message");
+
+    // The response streams in on the draft first (proving the animation ran)…
+    await waitFor(() => expect(screen.getByText(RESPONSE)).toBeInTheDocument());
+    // …then, once streaming completes, Chat navigates to the conversation route.
+    await waitFor(() =>
+      expect(screen.getByText("conversation route")).toBeInTheDocument()
+    );
   });
 });
 

@@ -197,13 +197,20 @@ export default function Chat({
           };
           setMessages((prev) => [...prev, newMessage]);
           setStreamingResponse("");
+          // A brand-new draft (started with no id) just finished streaming its first
+          // reply — now move to the conversation's canonical URL. Doing this AFTER the
+          // stream (rather than redirecting from the action) keeps the typing
+          // animation on the first message. Later messages already run on that route.
+          if (!initialConversationId && actionData?.conversationId) {
+            navigate(`/conversation/${actionData.conversationId}`);
+          }
         }
       }, 50); // 50ms delay between words
       streamIntervalRef.current = interval;
 
       return () => clearInterval(interval);
     }
-  }, [actionData]);
+  }, [actionData, initialConversationId, navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
