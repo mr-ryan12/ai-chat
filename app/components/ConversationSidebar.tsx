@@ -179,7 +179,11 @@ export default function ConversationSidebar({
                       ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
                       : "border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   }`}
-                  aria-current={currentConversationId === conversation.id ? "page" : undefined}
+                  aria-current={
+                    currentConversationId === conversation.id
+                      ? "page"
+                      : undefined
+                  }
                 >
                   {isCollapsed ? (
                     <div className="flex flex-col items-center">
@@ -203,8 +207,8 @@ export default function ConversationSidebar({
                   ) : (
                     <div className="space-y-1">
                       <div className="flex items-start justify-between">
-                        <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm leading-tight flex-1 pr-2">
-                          {truncateText(conversation.title)}
+                        <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm leading-tight flex-1 min-w-0 truncate pr-2">
+                          {conversation.title}
                         </h3>
                         <div className="flex items-center space-x-1">
                           <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -215,7 +219,10 @@ export default function ConversationSidebar({
                               handleDeleteClick(e, conversation.id)
                             }
                             className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition-all duration-200"
-                            aria-label={`Delete conversation: ${truncateText(conversation.title, 20)}`}
+                            aria-label={`Delete conversation: ${truncateText(
+                              conversation.title,
+                              20,
+                            )}`}
                           >
                             {deletingConversationId === conversation.id ? (
                               <svg
@@ -260,7 +267,10 @@ export default function ConversationSidebar({
                 {showDeleteConfirm === conversation.id && !isCollapsed && (
                   <div
                     role="dialog"
-                    aria-label={`Delete conversation: ${truncateText(conversation.title, 20)}`}
+                    aria-label={`Delete conversation: ${truncateText(
+                      conversation.title,
+                      20,
+                    )}`}
                     className="absolute top-0 left-0 right-0 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-lg z-10"
                   >
                     <p className="text-sm text-gray-900 dark:text-gray-100 mb-3">
