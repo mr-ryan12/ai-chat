@@ -4,6 +4,7 @@ import {
   HumanMessage,
   AIMessage,
   SystemMessage,
+  ToolMessage,
 } from "@langchain/core/messages";
 
 // Utils
@@ -20,6 +21,20 @@ import { updateConversationTitle } from "~/server/utils/apiCalls/updateConversat
 
 // Types
 import { IDatabaseMessage } from "~/types/chat.types";
+
+// Dispatch a single tool call to its implementation. Returns the tool's string
+// output so it can be wrapped in a ToolMessage for the follow-up model call.
+async function runTool(name: string, args: unknown): Promise<string> {
+  if (name === "search_web") {
+    return toolImplementations.search_web(args as { query: string });
+  }
+  if (name === "get_time_in_timezone") {
+    return toolImplementations.get_time_in_timezone(
+      args as { timezone: string }
+    );
+  }
+  throw new Error(`Unknown tool: ${name}`);
+}
 
 export async function createChatCompletion(
   message: string,
@@ -82,28 +97,28 @@ export async function createChatCompletion(
     // Check if the response is a tool call
     try {
       if (response.tool_calls && response.tool_calls.length > 0) {
-        const toolCall = response.tool_calls[0];
-
-        const toolName = toolCall.name;
-        const args = toolCall.args;
-
-        const toolResult = await(() => {
-          if (toolName === "search_web") {
-            return toolImplementations.search_web(args as { query: string });
-          } else if (toolName === "get_time_in_timezone") {
-            return toolImplementations.get_time_in_timezone(
-              args as { timezone: string }
-            );
-          }
-          throw new Error(`Unknown tool: ${toolName}`);
-        })();
+        // Run every requested tool and feed each result back as a ToolMessage
+        // linked to its tool_call id. This is the shape the model expects: the
+        // assistant message that requested the calls, followed by one tool
+        // response per call. The previous code passed a single stringified result
+        // as an AIMessage ("Tool X was called with result: ..."), which the model
+        // treated as low-authority and often ignored in favor of its training
+        // prior (e.g. answering an outdated "current president").
+        const toolMessages = await Promise.all(
+          response.tool_calls.map(async (toolCall) => {
+            const result = await runTool(toolCall.name, toolCall.args);
+            return new ToolMessage({
+              content: result,
+              tool_call_id: toolCall.id ?? "",
+            });
+          })
+        );
 
         const finalResponse = await model.invoke([
           systemMessage,
           ...messages,
-          new AIMessage(
-            `Tool ${toolName} was called with result: ${toolResult}`
-          ),
+          response,
+          ...toolMessages,
         ]);
 
         fullResponse = finalResponse.content.toString();
