@@ -18,9 +18,10 @@ export async function getConversation(
         include: { messages: true },
       });
 
-      // Return null if conversation doesn't exist instead of creating a new one
+      // Return null if the conversation doesn't exist instead of creating one.
+      // This is a normal DB miss (e.g. a not-yet-persisted draft id), not an HTTP
+      // 404 — the caller renders a normal page — so we don't log a bogus request.
       if (!conversation) {
-        logger.logRequest({ method: "GET", path: `/conversation/${id}`, duration: 0, status: 404 });
         return null;
       }
 
