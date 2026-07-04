@@ -29,7 +29,29 @@ export default function ConversationSidebar({
     null
   );
   const deleteFetcher = useFetcher<{ success?: boolean; error?: string }>();
+  const renameFetcher = useFetcher<{
+    success?: boolean;
+    title?: string;
+    error?: string;
+  }>();
   const deletedActiveRef = useRef(false);
+  // Which card is being renamed, plus the in-progress input value.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  // Focus + select the rename input when editing begins (via a ref effect rather
+  // than the autoFocus prop, which jsx-a11y disallows).
+  const editInputRef = useRef<HTMLInputElement>(null);
+  // Show the new title immediately while the rename round-trips + revalidates,
+  // keyed by conversation id. Cleared once the fetcher settles.
+  const [optimisticTitles, setOptimisticTitles] = useState<
+    Record<string, string>
+  >({});
+  // Escape cancels without saving: set before unmounting the input so the unmount's
+  // blur doesn't submit. Enter, by contrast, blurs the input and lets blur save.
+  const skipBlurSubmitRef = useRef(false);
+  // One-shot guard so the settle handler (clear optimistic + alert on error) runs
+  // once per result, not on every unrelated re-render.
+  const renameHandledRef = useRef(false);
   // Whether the current settled delete result has already been handled. Guards
   // against re-handling on unrelated re-renders (the effect's callback dep changes
   // identity each render), which would otherwise loop the failure alert().
@@ -101,6 +123,62 @@ export default function ConversationSidebar({
   const handleDeleteCancel = () => {
     setShowDeleteConfirm(null);
   };
+
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingId]);
+
+  const startEditing = (
+    e: React.MouseEvent,
+    conversationId: string,
+    currentTitle: string,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowDeleteConfirm(null);
+    setEditingId(conversationId);
+    setEditValue(currentTitle);
+  };
+
+  const cancelEditing = () => {
+    // Skip the submit that the resulting blur would otherwise trigger.
+    skipBlurSubmitRef.current = true;
+    setEditingId(null);
+  };
+
+  const submitRename = (conversationId: string, originalTitle: string) => {
+    setEditingId(null);
+    const trimmed = editValue.trim();
+    // No-op if unchanged or emptied — keep the existing title.
+    if (!trimmed || trimmed === originalTitle) return;
+    setOptimisticTitles((prev) => ({ ...prev, [conversationId]: trimmed }));
+    renameFetcher.submit(
+      { title: trimmed },
+      {
+        method: "patch",
+        action: `/api/conversation/${conversationId}/rename`,
+      },
+    );
+  };
+
+  // The rename posts to a resource route, which revalidates the parent loader — so
+  // the real title arrives in `conversations`. Clear the optimistic override once
+  // that settles; on failure, clearing reverts the card to the server title.
+  useEffect(() => {
+    if (renameFetcher.state !== "idle") {
+      renameHandledRef.current = false;
+      return;
+    }
+    if (!renameFetcher.data || renameHandledRef.current) return;
+    renameHandledRef.current = true;
+    setOptimisticTitles({});
+    if (renameFetcher.data.error) {
+      alert("Failed to rename conversation. Please try again.");
+    }
+  }, [renameFetcher.state, renameFetcher.data]);
 
   return (
     <div
@@ -232,13 +310,75 @@ export default function ConversationSidebar({
                   ) : (
                     <div className="space-y-1">
                       <div className="flex items-start justify-between">
-                        <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm leading-tight flex-1 min-w-0 truncate pr-2">
-                          {conversation.title}
-                        </h3>
-                        <div className="flex items-center space-x-1">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {conversation.messageCount} msg
-                          </span>
+                        {editingId === conversation.id ? (
+                          <input
+                            ref={editInputRef}
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            // Keep clicks inside the input from activating the
+                            // surrounding <Link> (navigation).
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                            onKeyDown={(e) => {
+                              e.stopPropagation();
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                // Let the resulting blur perform the single save.
+                                e.currentTarget.blur();
+                              } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                cancelEditing();
+                              }
+                            }}
+                            onBlur={() => {
+                              if (skipBlurSubmitRef.current) {
+                                skipBlurSubmitRef.current = false;
+                                return;
+                              }
+                              submitRename(conversation.id, conversation.title);
+                            }}
+                            aria-label="Conversation title"
+                            className="flex-1 min-w-0 text-sm font-medium bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-blue-300 dark:border-blue-600 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          />
+                        ) : (
+                          <>
+                            <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm leading-tight flex-1 min-w-0 truncate pr-2">
+                              {optimisticTitles[conversation.id] ??
+                                conversation.title}
+                            </h3>
+                            <div className="flex items-center space-x-1">
+                              <button
+                                onClick={(e) =>
+                                  startEditing(
+                                    e,
+                                    conversation.id,
+                                    optimisticTitles[conversation.id] ??
+                                      conversation.title,
+                                  )
+                                }
+                                className="opacity-0 group-hover:opacity-100 p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all duration-200"
+                                aria-label={`Rename conversation: ${truncateText(
+                                  conversation.title,
+                                  20,
+                                )}`}
+                              >
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                  />
+                                </svg>
+                              </button>
                           <button
                             onClick={(e) =>
                               handleDeleteClick(e, conversation.id)
@@ -279,7 +419,9 @@ export default function ConversationSidebar({
                               </svg>
                             )}
                           </button>
-                        </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {formatRelativeDate(conversation.updatedAt)}
