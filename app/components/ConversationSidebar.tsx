@@ -62,6 +62,26 @@ export default function ConversationSidebar({
   // Ensure conversations is always an array
   const safeConversations = conversations || [];
 
+  // Animate only cards that are genuinely new — not the whole list on first paint.
+  // `seenIdsRef` holds every id we've already rendered; it's seeded on the first
+  // render (so nothing animates on load) and any id absent from it is treated as a
+  // just-added card. Ids are added to the set after commit so they animate once.
+  const seenIdsRef = useRef<Set<string> | null>(null);
+  const isFirstRender = seenIdsRef.current === null;
+  const seenIds = seenIdsRef.current ?? new Set<string>();
+  if (isFirstRender) {
+    // Seed with the ids present on load so none of them animate in.
+    for (const conversation of safeConversations) seenIds.add(conversation.id);
+    seenIdsRef.current = seenIds;
+  }
+  const isNewCard = (id: string): boolean => !isFirstRender && !seenIds.has(id);
+
+  useEffect(() => {
+    // Mark everything currently rendered as seen so it won't animate again.
+    for (const conversation of safeConversations) {
+      seenIds.add(conversation.id);
+    }
+  });
 
   const handleDeleteClick = (e: React.MouseEvent, conversationId: string) => {
     e.preventDefault();
@@ -171,7 +191,12 @@ export default function ConversationSidebar({
         ) : (
           <div className="space-y-1 p-2">
             {safeConversations.map((conversation) => (
-              <div key={conversation.id} className="relative group">
+              <div
+                key={conversation.id}
+                className={`relative group ${
+                  isNewCard(conversation.id) ? "animate-card-enter" : ""
+                }`}
+              >
                 <Link
                   to={`/conversation/${conversation.id}`}
                   className={`block w-full text-left p-3 rounded-lg border transition-colors duration-200 ${
