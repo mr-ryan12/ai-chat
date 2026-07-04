@@ -19,12 +19,25 @@ export default function DocumentManager() {
   // focus, restores focus on close, and handles Escape + the ::backdrop overlay.
   const dialogRef = useRef<HTMLDialogElement>(null);
 
+  // Upload result banner: text plus tone so success/failure render differently.
+  // Held in state so it can be cleared on open/close like the delete banner.
+  const [uploadMessage, setUploadMessage] = useState<{
+    text: string;
+    ok: boolean;
+  } | null>(null);
+
   // Data + mutations go through Remix resource routes via useFetcher, not raw fetch.
   const listFetcher = useFetcher<{
     documents: DocumentListItem[];
     error?: string;
   }>();
   const deleteFetcher = useFetcher<{ success?: boolean; error?: string }>();
+  const uploadFetcher = useFetcher<{ success?: boolean; error?: string }>();
+
+  // Hidden file input driven by the visible Upload buttons (header + empty-state CTA).
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // In-flight flag derived from the fetcher — no separate boolean to keep in sync.
+  const uploading = uploadFetcher.state !== "idle";
 
   // Derived view state (fetchers are the source of truth — no local mirror).
   const documents = listFetcher.data?.documents ?? [];
@@ -41,6 +54,7 @@ export default function DocumentManager() {
   const open = () => {
     setConfirmId(null);
     setDeleteError(null);
+    setUploadMessage(null);
     listFetcher.load("/api/documents");
     dialogRef.current?.showModal();
     // showModal() makes the background inert but does not lock scroll — do it here.
@@ -54,6 +68,7 @@ export default function DocumentManager() {
   const handleClose = () => {
     setConfirmId(null);
     setDeleteError(null);
+    setUploadMessage(null);
     document.body.style.overflow = "";
   };
 
@@ -94,6 +109,47 @@ export default function DocumentManager() {
       method: "delete",
       action: `/api/document/${id}/delete`,
     });
+  };
+
+  // Same as the delete case: the list is a fetcher.load, so it won't auto-revalidate
+  // after the upload submission — surface the result and refresh once per success.
+  const reloadedForUpload = useRef(false);
+  useEffect(() => {
+    if (uploadFetcher.state === "submitting") {
+      reloadedForUpload.current = false;
+    }
+    if (uploadFetcher.state === "idle" && uploadFetcher.data) {
+      const { success, error } = uploadFetcher.data;
+      setUploadMessage({
+        text: success ? "Document uploaded." : error ?? "Upload failed.",
+        ok: !!success,
+      });
+      if (success && !reloadedForUpload.current) {
+        reloadedForUpload.current = true;
+        listFetcher.load("/api/documents");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadFetcher.state, uploadFetcher.data]);
+
+  const handleUploadClick = () => fileInputRef.current?.click();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadMessage(null);
+    const formData = new FormData();
+    formData.append("file", file);
+    // Library-scoped upload: no conversationId, so the document isn't tied to a chat.
+    // multipart/form-data is required for the file part (Remix otherwise URL-encodes it).
+    uploadFetcher.submit(formData, {
+      method: "post",
+      action: "/upload-file",
+      encType: "multipart/form-data",
+    });
+    // submit() has already captured the FormData; safe to clear so re-selecting the
+    // same file fires change again.
+    e.target.value = "";
   };
 
   return (
@@ -139,28 +195,78 @@ export default function DocumentManager() {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Your Documents
             </h2>
-            <button
-              type="button"
-              onClick={close}
-              className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-              aria-label="Close"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleUploadClick}
+                disabled={uploading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 dark:bg-blue-600 text-white text-sm font-medium hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+                {uploading ? (
+                  <svg
+                    className="w-4 h-4 animate-spin"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16"
+                    />
+                  </svg>
+                )}
+                {uploading ? "Uploading…" : "Upload"}
+              </button>
+              <button
+                type="button"
+                onClick={close}
+                className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                aria-label="Close"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
+
+          {/* Hidden input driven by both the header button and the empty-state CTA. */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.docx,.txt"
+            className="hidden"
+            onChange={handleFileChange}
+          />
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-4">
@@ -170,6 +276,19 @@ export default function DocumentManager() {
                 role="alert"
               >
                 {deleteError}
+              </p>
+            )}
+
+            {uploadMessage && (
+              <p
+                className={`text-sm mb-3 ${
+                  uploadMessage.ok
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400"
+                }`}
+                role={uploadMessage.ok ? "status" : "alert"}
+              >
+                {uploadMessage.text}
               </p>
             )}
 
@@ -185,9 +304,19 @@ export default function DocumentManager() {
                 {loadError}
               </p>
             ) : documents.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
-                No documents uploaded yet.
-              </p>
+              <div className="text-center py-8">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No documents uploaded yet.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleUploadClick}
+                  disabled={uploading}
+                  className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500 dark:bg-blue-600 text-white text-sm font-medium hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploading ? "Uploading…" : "Upload a document"}
+                </button>
+              </div>
             ) : (
               <ul className="space-y-2">
                 {documents.map((doc) => (
