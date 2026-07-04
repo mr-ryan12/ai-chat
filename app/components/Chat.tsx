@@ -24,6 +24,7 @@ interface ActionData {
 
 interface ChatProps {
   conversationId?: string;
+  initialMessages?: Message[];
   onConversationIdChange?: (id: string) => void;
 }
 
@@ -38,17 +39,21 @@ interface MessagesApiResponse {
 
 export default function Chat({
   conversationId: initialConversationId,
+  initialMessages,
   onConversationIdChange,
 }: ChatProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState<string>(
     initialConversationId || ""
   );
   const [streamingResponse, setStreamingResponse] = useState("");
   // True while a conversation's history is being fetched — keeps the empty-state
-  // welcome from flashing between clearing messages and the history arriving.
-  const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId);
+  // welcome from flashing between clearing messages and the history arriving. Starts
+  // false when the loader already seeded history (nothing to fetch).
+  const [loadingHistory, setLoadingHistory] = useState(
+    !!initialConversationId && !initialMessages
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
@@ -66,7 +71,11 @@ export default function Chat({
   // Apply fetched history only on the FIRST load of a conversation. Remix
   // revalidates fetcher loads after every action, so re-applying that DB snapshot
   // mid-stream would collide with the optimistic assistant append (duplicate reply).
-  const historyLoadedRef = useRef(false);
+  // Already satisfied when the loader seeded history — there's no fetch to apply.
+  const historyLoadedRef = useRef(!!initialMessages);
+  // The conversation whose history was seeded from the route loader on this mount,
+  // so the load effect can skip the redundant fetch (and its blank flash) for it.
+  const seededIdRef = useRef(initialMessages ? initialConversationId : null);
   // Commit each assistant response at most once, even if the effect re-runs.
   const committedActionDataRef = useRef<ActionData | null>(null);
   // `actionData` is route-scoped and outlives a keyed remount of this component, so
@@ -103,15 +112,23 @@ export default function Chat({
     }
     if (initialConversationId) {
       setConversationId(initialConversationId);
-      setMessages([]);
       setStreamingResponse("");
-      // New conversation context: allow the next fetched history to apply once, and
-      // suppress the empty-state until it arrives.
-      historyLoadedRef.current = false;
-      setLoadingHistory(true);
-      messagesFetcher.load(
-        `/api/conversation/${initialConversationId}/messages`
-      );
+      if (seededIdRef.current === initialConversationId) {
+        // History was seeded from the route loader on this mount — render it
+        // directly, no fetch, no blank. Consume the seed so a later switch to a
+        // different conversation fetches normally.
+        seededIdRef.current = null;
+        setLoadingHistory(false);
+      } else {
+        setMessages([]);
+        // New conversation context: allow the next fetched history to apply once,
+        // and suppress the empty-state until it arrives.
+        historyLoadedRef.current = false;
+        setLoadingHistory(true);
+        messagesFetcher.load(
+          `/api/conversation/${initialConversationId}/messages`
+        );
+      }
     } else {
       // Fresh chat: generate the conversation id up front so an upload and the
       // first message share it. Nothing is written to the DB until the first
@@ -197,20 +214,13 @@ export default function Chat({
           };
           setMessages((prev) => [...prev, newMessage]);
           setStreamingResponse("");
-          // A brand-new draft (started with no id) just finished streaming its first
-          // reply — now move to the conversation's canonical URL. Doing this AFTER the
-          // stream (rather than redirecting from the action) keeps the typing
-          // animation on the first message. Later messages already run on that route.
-          if (!initialConversationId && actionData?.conversationId) {
-            navigate(`/conversation/${actionData.conversationId}`);
-          }
         }
       }, 50); // 50ms delay between words
       streamIntervalRef.current = interval;
 
       return () => clearInterval(interval);
     }
-  }, [actionData, initialConversationId, navigate]);
+  }, [actionData]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

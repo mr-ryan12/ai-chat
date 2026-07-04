@@ -109,11 +109,15 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function ConversationPage() {
-  const { conversations, conversationId } = useLoaderData<typeof loader>();
+  const { conversation, conversations, conversationId } =
+    useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const initialMessages = conversation?.messages?.map((message) => ({
+    role: message.role as "user" | "assistant",
+    content: message.content,
+  }));
 
-  // Ensure conversations is properly typed and handle potential null values
   const safeConversations: Conversation[] | null = isValidConversationsArray(
     conversations,
   )
@@ -178,7 +182,10 @@ export default function ConversationPage() {
         <main className="flex-1 flex flex-col min-w-0">
           <div className="flex-1 p-3 md:p-6">
             <div className="card h-full">
-              <Chat conversationId={conversationId || ""} />
+              <Chat
+                conversationId={conversationId || ""}
+                initialMessages={initialMessages}
+              />
             </div>
           </div>
         </main>

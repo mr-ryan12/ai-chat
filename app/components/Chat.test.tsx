@@ -183,37 +183,28 @@ describe("Chat streaming + reset", () => {
     expect(screen.queryByText("weather in denver")).not.toBeInTheDocument();
   });
 
-  it("navigates a draft to /conversation/:id after the first reply finishes streaming", async () => {
-    // A brand-new chat (no conversationId) streams its first reply in place, then
-    // moves to the conversation's canonical URL — so the first message still animates
-    // AND the address bar updates. The reply carries the server-assigned id.
+  it("renders loader-seeded history on first paint without fetching (no blank flash)", async () => {
     const Stub = createRemixStub([
       {
-        path: "/",
-        Component: () => <Chat />,
-        action: async ({ request }) => {
-          const form = await request.formData();
-          return {
-            ...actionReply(String(form.get("message") ?? "")),
-            conversationId: "conv-new",
-          };
-        },
-      },
-      {
+        // No /api/conversation/:id/messages route on purpose: if Chat tried to fetch
+        // history instead of using the seed, the messages wouldn't appear.
         path: "/conversation/:id",
-        Component: () => <div>conversation route</div>,
+        Component: () => (
+          <Chat
+            conversationId="conv-1"
+            initialMessages={[
+              { role: "user", content: "seeded question" },
+              { role: "assistant", content: "seeded answer" },
+            ]}
+          />
+        ),
       },
     ]);
-    render(<Stub initialEntries={["/"]} />);
+    render(<Stub initialEntries={["/conversation/conv-1"]} />);
 
-    typeAndSend("first message");
-
-    // The response streams in on the draft first (proving the animation ran)…
-    await waitFor(() => expect(screen.getByText(RESPONSE)).toBeInTheDocument());
-    // …then, once streaming completes, Chat navigates to the conversation route.
-    await waitFor(() =>
-      expect(screen.getByText("conversation route")).toBeInTheDocument()
-    );
+    // Present synchronously on first paint — no loading blank, no fetch round-trip.
+    expect(screen.getByText("seeded question")).toBeInTheDocument();
+    expect(screen.getByText("seeded answer")).toBeInTheDocument();
   });
 });
 
