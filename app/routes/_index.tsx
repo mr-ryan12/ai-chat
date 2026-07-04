@@ -1,5 +1,10 @@
 // Packages
-import { data, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import {
+  data,
+  redirect,
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+} from "@remix-run/node";
 import { useState, useEffect, useCallback } from "react";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 
@@ -40,18 +45,17 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    const {
-      response,
-      words,
-      conversationId: newConversationId,
-    } = await createChatCompletion(message, conversationId, userId);
-
-    return data({
+    const { conversationId: newConversationId } = await createChatCompletion(
       message,
-      response,
-      words,
-      conversationId: newConversationId,
-    });
+      conversationId,
+      userId
+    );
+
+    // The index chat is a draft; once the first message persists the conversation,
+    // move to its canonical URL so the id shows in the address bar and a refresh
+    // reloads the real conversation instead of starting a new draft. Subsequent
+    // messages are sent from the /conversation/:id route (which streams normally).
+    return redirect(`/conversation/${newConversationId}`);
   } catch (error) {
     logger.logError(error, {
       method: request.method,
