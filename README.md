@@ -7,8 +7,9 @@ An AI-powered chat application with RAG (Retrieval-Augmented Generation) capabil
 ## Features
 
 - **AI Chat** — Conversational interface powered by GPT-4
-- **Document Upload & Ingestion** — Upload documents that get chunked, embedded, and stored for retrieval
-- **Vector Search** — Relevant document context is surfaced automatically using pgvector cosine similarity
+- **Document Library** — Upload, browse, and delete your documents from a management dialog; documents belong to you and persist across conversations
+- **Document Ingestion** — Uploaded documents are chunked, embedded, and stored for retrieval
+- **Hybrid Retrieval** — Relevant document context is surfaced using pgvector similarity combined with Postgres full-text search, fused via Reciprocal Rank Fusion
 - **Tool Use** — Built-in web search (SerpAPI) and timezone tools the AI can call mid-conversation
 - **Conversation Management** — Create, browse, and delete conversation threads
 - **Auth** — Cookie-based session authentication with username login
@@ -18,7 +19,7 @@ An AI-powered chat application with RAG (Retrieval-Augmented Generation) capabil
 - **Framework:** Remix v2 + Vite
 - **Language:** TypeScript (strict mode)
 - **Database:** PostgreSQL + pgvector
-- **AI:** OpenAI GPT-4 + text-embedding-ada-002 via LangChain
+- **AI:** OpenAI GPT-4 + text-embedding-3-small via LangChain
 - **Styling:** Tailwind CSS
 
 ## Prerequisites
@@ -76,7 +77,9 @@ An AI-powered chat application with RAG (Retrieval-Augmented Generation) capabil
 | `yarn start` | Run production build |
 | `yarn lint` | Run ESLint |
 | `yarn typecheck` | TypeScript type check |
-| `yarn migrate:new` | Create a new Prisma migration |
+| `yarn test` | Run unit tests once (Vitest) |
+| `yarn test:watch` | Run unit tests in watch mode |
+| `yarn migrate:new` | Create a new Prisma migration (without applying) |
 | `yarn migrate:latest` | Apply pending migrations |
+| `yarn db:push` | Push schema to the database without migrations (prototyping) |
 | `yarn prisma:generate` | Regenerate Prisma client |
-| `yarn run:ingest` | Run document ingestion script |

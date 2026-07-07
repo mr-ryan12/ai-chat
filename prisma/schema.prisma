@@ -18,7 +18,7 @@ datasource db {
 model User {
   id            String         @id @default(cuid())
   username      String         @unique
-  createdAt     DateTime       @default(now())
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   conversations Conversation[]
   documents     Document[]
 }
@@ -28,9 +28,10 @@ model Conversation {
   title     String?
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
   messages  Message[]
+  documents Document[]
 
   @@index([userId])
 }
@@ -39,22 +40,27 @@ model Message {
   id             String       @id @default(cuid())
   content        String
   role           Role // "user" or "assistant"
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   conversationId String
 }
 
 model Document {
-  id          String                      @id @default(cuid())
-  title       String?
-  userId      String
-  user        User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  contentHash String?
-  embedding   Unsupported("vector(1536)")
-  metadata    Json?
-  chunks      DocumentChunk[]
+  id             String                      @id @default(cuid())
+  title          String?
+  userId         String
+  user           User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation?               @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  contentHash    String?
+  embedding      Unsupported("vector(1536)")
+  metadata       Json?
+  createdAt      DateTime                    @default(now()) @db.Timestamptz(3)
+  chunks         DocumentChunk[]
 
   @@unique([userId, contentHash])
+  @@index([userId, createdAt])
+  @@index([conversationId])
 }
 
 model DocumentChunk {
@@ -67,16 +73,20 @@ model DocumentChunk {
   page       Int?
   orderInDoc Int?
   metadata   Json?
+  // Generated column: to_tsvector('english', content). Populated by the DB, not by
+  // ingestion. See migration 20260701_add_fts_generated_column_and_gin_indexes.
   fts        Unsupported("tsvector")?
-  createdAt  DateTime                    @default(now())
-  // GIN index for metadata and FTS must be created manually in migration SQL
-  // CREATE INDEX chunk_metadata_idx ON "DocumentChunk" USING GIN (metadata);
-  // CREATE INDEX chunk_fts_idx ON "DocumentChunk" USING GIN (fts);
-
+  createdAt  DateTime                    @default(now()) @db.Timestamptz(3)
   @@index([documentId])
   @@index([section])
   @@index([page])
   @@index([orderInDoc])
+  // GIN indexes are declared here so Prisma tracks them (no drift), but they're created
+  // in raw migration SQL alongside the fts generated column. The HNSW index on
+  // `embedding` and the fts GENERATED expression stay raw — neither is expressible in
+  // the Prisma schema.
+  @@index([metadata], type: Gin)
+  @@index([fts], type: Gin)
 }
 
 enum Role {

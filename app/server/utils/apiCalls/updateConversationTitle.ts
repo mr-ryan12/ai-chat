@@ -3,6 +3,7 @@ import { prisma } from "../../db.server";
 
 // Utils
 import { logger } from "../logger";
+import { generateConversationTitle } from "../generateConversationTitle";
 
 export async function updateConversationTitle(conversationId: string, userId: string) {
   try {
@@ -31,11 +32,9 @@ export async function updateConversationTitle(conversationId: string, userId: st
       return;
     }
 
-    // Generate a title from the first message (truncate to 50 characters)
-    const title =
-      firstMessage.content.length > 50
-        ? firstMessage.content.substring(0, 50) + "..."
-        : firstMessage.content;
+    // Summarize the first user message into a short title (falls back to a
+    // deterministic truncation internally if the model call fails).
+    const title = await generateConversationTitle(firstMessage.content);
 
     // Update the conversation title — scoped to user via the verified lookup above
     await prisma.conversation.update({

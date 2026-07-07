@@ -4,21 +4,37 @@ import {
   HumanMessage,
   AIMessage,
   SystemMessage,
+  ToolMessage,
 } from "@langchain/core/messages";
 
 // Utils
 import { systemMessage } from "~/server/utils/systemMessage";
 import { queryDocuments } from "../server/utils/documentService";
+import { wantsDocumentContext } from "~/server/utils/documentIntent";
 import { toolImplementations, tools } from "../server/utils/tools";
 import { logger } from "~/server/utils/logger";
 
 // Server
 import { prisma } from "../server/db.server";
-import { getConversation, createNewConversation } from "~/server/utils/apiCalls/getConversation";
+import { getConversation, createNewConversation, ensureConversation } from "~/server/utils/apiCalls/getConversation";
 import { updateConversationTitle } from "~/server/utils/apiCalls/updateConversationTitle";
 
 // Types
 import { IDatabaseMessage } from "~/types/chat.types";
+
+// Dispatch a single tool call to its implementation. Returns the tool's string
+// output so it can be wrapped in a ToolMessage for the follow-up model call.
+async function runTool(name: string, args: unknown): Promise<string> {
+  if (name === "search_web") {
+    return toolImplementations.search_web(args as { query: string });
+  }
+  if (name === "get_time_in_timezone") {
+    return toolImplementations.get_time_in_timezone(
+      args as { timezone: string }
+    );
+  }
+  throw new Error(`Unknown tool: ${name}`);
+}
 
 export async function createChatCompletion(
   message: string,
@@ -31,15 +47,13 @@ export async function createChatCompletion(
       temperature: 0,
     });
 
-    // Get relevant document content if the query seems to be about documents
+    // Pull document context when the message refers to documents. Retrieval is
+    // scoped to the current conversation's uploads first, then the user's most
+    // recent upload, then a corpus-wide semantic search (see queryDocuments).
     let documentContext = "";
-    if (
-      message.toLowerCase().includes("document") ||
-      message.toLowerCase().includes("text") ||
-      message.toLowerCase().includes("content")
-    ) {
+    if (wantsDocumentContext(message)) {
       try {
-        documentContext = await queryDocuments(message, userId);
+        documentContext = await queryDocuments(message, userId, conversationId);
       } catch (docError) {
         logger.logError(docError);
         // Continue without document context
@@ -83,28 +97,28 @@ export async function createChatCompletion(
     // Check if the response is a tool call
     try {
       if (response.tool_calls && response.tool_calls.length > 0) {
-        const toolCall = response.tool_calls[0];
-
-        const toolName = toolCall.name;
-        const args = toolCall.args;
-
-        const toolResult = await(() => {
-          if (toolName === "search_web") {
-            return toolImplementations.search_web(args as { query: string });
-          } else if (toolName === "get_time_in_timezone") {
-            return toolImplementations.get_time_in_timezone(
-              args as { timezone: string }
-            );
-          }
-          throw new Error(`Unknown tool: ${toolName}`);
-        })();
+        // Run every requested tool and feed each result back as a ToolMessage
+        // linked to its tool_call id. This is the shape the model expects: the
+        // assistant message that requested the calls, followed by one tool
+        // response per call. The previous code passed a single stringified result
+        // as an AIMessage ("Tool X was called with result: ..."), which the model
+        // treated as low-authority and often ignored in favor of its training
+        // prior (e.g. answering an outdated "current president").
+        const toolMessages = await Promise.all(
+          response.tool_calls.map(async (toolCall) => {
+            const result = await runTool(toolCall.name, toolCall.args);
+            return new ToolMessage({
+              content: result,
+              tool_call_id: toolCall.id ?? "",
+            });
+          })
+        );
 
         const finalResponse = await model.invoke([
           systemMessage,
           ...messages,
-          new AIMessage(
-            `Tool ${toolName} was called with result: ${toolResult}`
-          ),
+          response,
+          ...toolMessages,
         ]);
 
         fullResponse = finalResponse.content.toString();
@@ -121,9 +135,13 @@ export async function createChatCompletion(
         "I encountered an error while processing your request. Please try again.";
     }
 
-    // Only create conversation after successful AI response
+    // Only create the conversation after a successful AI response. When the client
+    // supplied an id (an upload may already have created the row under it), reuse it
+    // via ensureConversation; otherwise fall back to a server-generated conversation.
     if (!conversation) {
-      conversation = await createNewConversation(userId);
+      conversation = conversationId
+        ? await ensureConversation(conversationId, userId)
+        : await createNewConversation(userId);
     }
 
     // Save the messages

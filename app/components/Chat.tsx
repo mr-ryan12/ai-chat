@@ -5,6 +5,7 @@ import {
   useActionData,
   useNavigation,
   useNavigate,
+  useFetcher,
 } from "@remix-run/react";
 
 interface Message {
@@ -23,6 +24,8 @@ interface ActionData {
 
 interface ChatProps {
   conversationId?: string;
+  initialMessages?: Message[];
+  onConversationIdChange?: (id: string) => void;
 }
 
 interface ApiMessage {
@@ -36,23 +39,54 @@ interface MessagesApiResponse {
 
 export default function Chat({
   conversationId: initialConversationId,
+  initialMessages,
+  onConversationIdChange,
 }: ChatProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState<string>(
     initialConversationId || ""
   );
   const [streamingResponse, setStreamingResponse] = useState("");
+  // True while a conversation's history is being fetched — keeps the empty-state
+  // welcome from flashing between clearing messages and the history arriving. Starts
+  // false when the loader already seeded history (nothing to fetch).
+  const [loadingHistory, setLoadingHistory] = useState(
+    !!initialConversationId && !initialMessages
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
   const navigate = useNavigate();
+  const messagesFetcher = useFetcher<MessagesApiResponse>();
+  const uploadFetcher = useFetcher<{ success?: boolean; error?: string }>();
   const isSubmitting =
     navigation.state === "submitting" &&
     navigation.formData?.has("message") === true;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  // The upload goes through the Remix data layer — derive the in-flight flag from
+  // the fetcher instead of tracking a separate boolean.
+  const uploading = uploadFetcher.state !== "idle";
+  // Apply fetched history only on the FIRST load of a conversation. Remix
+  // revalidates fetcher loads after every action, so re-applying that DB snapshot
+  // mid-stream would collide with the optimistic assistant append (duplicate reply).
+  // Already satisfied when the loader seeded history — there's no fetch to apply.
+  const historyLoadedRef = useRef(!!initialMessages);
+  // The conversation whose history was seeded from the route loader on this mount,
+  // so the load effect can skip the redundant fetch (and its blank flash) for it.
+  const seededIdRef = useRef(initialMessages ? initialConversationId : null);
+  // Commit each assistant response at most once, even if the effect re-runs.
+  const committedActionDataRef = useRef<ActionData | null>(null);
+  // `actionData` is route-scoped and outlives a keyed remount of this component, so
+  // a reset chat would otherwise replay the previous response. Ignore whatever was
+  // already present at mount; only react to responses that arrive afterwards.
+  const mountActionDataRef = useRef(actionData);
+  // The in-flight streaming interval, so we can cancel it when the conversation
+  // changes (otherwise the previous chat's reply lands in the newly-opened one).
+  const streamIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The optimistically-appended message text, so a failed send can be rolled back.
+  const pendingSubmitRef = useRef<string | null>(null);
 
   // Handle redirect if conversation ID changed
   useEffect(() => {
@@ -61,55 +95,105 @@ export default function Chat({
     }
   }, [actionData?.redirect, navigate]);
 
-  // Load existing messages when conversationId changes
+  // Report the active conversation id up so the route can track it — e.g. to reset
+  // this chat when that conversation is deleted. Fires for the client-generated id
+  // of a fresh chat and for any later change.
   useEffect(() => {
-    const loadMessages = async () => {
-      if (initialConversationId) {
-        setConversationId(initialConversationId);
-        setMessages([]);
-        setStreamingResponse("");
-        try {
-          const response = await fetch(
-            `/api/conversation/${initialConversationId}/messages`
-          );
-          if (response.ok) {
-            const data: MessagesApiResponse = await response.json();
-            const loadedMessages = data.messages.map((msg: ApiMessage) => ({
-              role: msg.role,
-              content: msg.content,
-            }));
-            setMessages(loadedMessages);
-          }
-        } catch (error) {
-          console.error("Failed to load messages:", error);
-        }
-      } else {
-        // No conversation ID, clear everything
-        setMessages([]);
-        setConversationId("");
-        setStreamingResponse("");
-      }
-    };
+    if (conversationId) onConversationIdChange?.(conversationId);
+  }, [conversationId, onConversationIdChange]);
 
-    loadMessages();
+  // Load existing messages when the conversation changes (via Remix data layer).
+  useEffect(() => {
+    // Cancel any streaming animation from the previous conversation so its reply
+    // can't get appended into the one we're switching to.
+    if (streamIntervalRef.current) {
+      clearInterval(streamIntervalRef.current);
+      streamIntervalRef.current = null;
+    }
+    if (initialConversationId) {
+      setConversationId(initialConversationId);
+      setStreamingResponse("");
+      if (seededIdRef.current === initialConversationId) {
+        // History was seeded from the route loader on this mount — render it
+        // directly, no fetch, no blank. Consume the seed so a later switch to a
+        // different conversation fetches normally.
+        seededIdRef.current = null;
+        setLoadingHistory(false);
+      } else {
+        setMessages([]);
+        // New conversation context: allow the next fetched history to apply once,
+        // and suppress the empty-state until it arrives.
+        historyLoadedRef.current = false;
+        setLoadingHistory(true);
+        messagesFetcher.load(
+          `/api/conversation/${initialConversationId}/messages`
+        );
+      }
+    } else {
+      // Fresh chat: generate the conversation id up front so an upload and the
+      // first message share it. Nothing is written to the DB until the first
+      // real action, so abandoning the page leaves no record behind.
+      setMessages([]);
+      setConversationId(crypto.randomUUID());
+      setStreamingResponse("");
+      setLoadingHistory(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialConversationId]);
 
+  // Sync loaded history into local message state — but only for the initial load
+  // of a conversation. Post-action revalidations of this fetcher return a DB
+  // snapshot that would overwrite (and duplicate against) the optimistic updates.
   useEffect(() => {
-    if (actionData?.message) {
-      const newMessage: Message = {
-        role: "user",
-        content: actionData.message,
-      };
-      setMessages((prev) => [...prev, newMessage]);
-      if (actionData.conversationId) {
-        setConversationId(actionData.conversationId);
-      }
-      setInput("");
+    // Nothing has come back yet — keep showing the loading state.
+    if (!messagesFetcher.data) return;
+    // The fetch has settled (success OR an error-shaped response like 404/500) —
+    // reveal the conversation so the empty-state can render instead of a permanent
+    // blank when history can't be loaded.
+    setLoadingHistory(false);
+    if (!messagesFetcher.data.messages) return;
+    // Apply history only on the FIRST load; ignore post-action revalidations.
+    if (historyLoadedRef.current) return;
+    historyLoadedRef.current = true;
+    setMessages(
+      messagesFetcher.data.messages.map((msg: ApiMessage) => ({
+        role: msg.role,
+        content: msg.content,
+      }))
+    );
+  }, [messagesFetcher.data]);
+
+  useEffect(() => {
+    if (actionData === mountActionDataRef.current) return;
+    if (actionData?.error && pendingSubmitRef.current) {
+      // The send failed: roll back the optimistic user message and restore the text
+      // to the input so it can be retried (the old code preserved it on error).
+      const failed = pendingSubmitRef.current;
+      pendingSubmitRef.current = null;
+      setMessages((prev) =>
+        prev.length > 0 &&
+        prev[prev.length - 1].role === "user" &&
+        prev[prev.length - 1].content === failed
+          ? prev.slice(0, -1)
+          : prev
+      );
+      setInput((cur) => cur || failed);
+      return;
+    }
+    // Success: the optimistic message is confirmed; sync the server conversation id.
+    // (The user message is rendered optimistically on submit in handleSubmit.)
+    pendingSubmitRef.current = null;
+    if (actionData?.conversationId) {
+      setConversationId(actionData.conversationId);
     }
   }, [actionData]);
 
   useEffect(() => {
+    if (actionData === mountActionDataRef.current) return;
     if (actionData?.words && actionData.words.length > 0) {
+      // Guard against committing the same response twice if this effect re-runs
+      // (e.g. a revalidation re-renders mid-stream). One actionData → one reply.
+      if (committedActionDataRef.current === actionData) return;
       setStreamingResponse("");
       let currentIndex = 0;
       const interval = setInterval(() => {
@@ -122,6 +206,8 @@ export default function Chat({
           currentIndex++;
         } else {
           clearInterval(interval);
+          streamIntervalRef.current = null;
+          committedActionDataRef.current = actionData;
           const newMessage: Message = {
             role: "assistant",
             content: actionData.response || "",
@@ -130,10 +216,11 @@ export default function Chat({
           setStreamingResponse("");
         }
       }, 50); // 50ms delay between words
+      streamIntervalRef.current = interval;
 
       return () => clearInterval(interval);
     }
-  }, [actionData?.words, actionData?.response]);
+  }, [actionData]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -154,39 +241,57 @@ export default function Chat({
     return () => clearTimeout(timeoutId);
   }, [uploadMessage]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Surface the upload result once the fetcher settles. The action returns
+  // { success: true } or { error }; the transient banner (auto-cleared above)
+  // keeps the same copy the manual flow used.
+  useEffect(() => {
+    if (uploadFetcher.state !== "idle" || !uploadFetcher.data) return;
+    setUploadMessage(
+      uploadFetcher.data.success
+        ? "File uploaded and ingested successfully!"
+        : uploadFetcher.data.error ?? "Upload failed"
+    );
+  }, [uploadFetcher.state, uploadFetcher.data]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploading(true);
     setUploadMessage(null);
     const formData = new FormData();
     formData.append("file", file);
-    try {
-      const res = await fetch("/upload-file", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (res.ok) {
-        setUploadMessage("File uploaded and ingested successfully!");
-      } else {
-        const body = await res.json().catch(() => null);
-        setUploadMessage(body?.error ?? "Upload failed");
-      }
-    } catch (err) {
-      console.error(err);
-      setUploadMessage("Upload failed");
-    } finally {
-      setUploading(false);
-      e.target.value = "";
+    if (conversationId) {
+      formData.append("conversationId", conversationId);
     }
+    // multipart/form-data is required for the file part — Remix otherwise
+    // URL-encodes the body, which would drop the upload.
+    uploadFetcher.submit(formData, {
+      method: "post",
+      action: "/upload-file",
+      encType: "multipart/form-data",
+    });
+    // Safe to reset now: submit() has already captured the FormData we built.
+    e.target.value = "";
+  };
+
+  // Render the user's message immediately (optimistic) rather than waiting for the
+  // action to return — otherwise it only appears once the response is ready. Remix
+  // still submits the form; clearing `input` here doesn't affect the in-flight
+  // FormData (already captured from the DOM by the time React re-renders).
+  const handleSubmit = () => {
+    const trimmed = input.trim();
+    // Don't append while history is still loading — the in-flight initial load would
+    // overwrite the optimistic message (the input is also disabled in this state).
+    if (!trimmed || loadingHistory) return;
+    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+    pendingSubmitRef.current = trimmed;
+    setInput("");
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-200px)] max-w-4xl mx-auto">
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto mb-4 md:mb-6 space-y-4 md:space-y-6 px-2 md:px-4">
-        {messages.length === 0 && (
+        {messages.length === 0 && !loadingHistory && !isSubmitting && (
           <div className="text-center py-8 md:py-12">
             <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg
@@ -375,7 +480,11 @@ export default function Chat({
 
       {/* Input Container */}
       <div className="relative border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 md:p-4 rounded-b-xl">
-        <Form method="post" className="flex gap-2 md:gap-3 items-end">
+        <Form
+          method="post"
+          onSubmit={handleSubmit}
+          className="flex gap-2 md:gap-3 items-end"
+        >
           <input type="hidden" name="conversationId" value={conversationId} />
 
           {/* File Upload Button */}
@@ -421,11 +530,11 @@ export default function Chat({
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your message..."
               className="input-modern w-full pr-10 md:pr-12 text-sm md:text-base"
-              disabled={isSubmitting}
+              disabled={isSubmitting || loadingHistory}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  if (input.trim() && !isSubmitting) {
+                  if (input.trim() && !isSubmitting && !loadingHistory) {
                     e.currentTarget.form?.requestSubmit();
                   }
                 }
@@ -433,7 +542,7 @@ export default function Chat({
             />
             <button
               type="submit"
-              disabled={isSubmitting || !input.trim()}
+              disabled={isSubmitting || loadingHistory || !input.trim()}
               className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2 btn-primary p-1.5 md:p-2 rounded-lg"
             >
               <svg

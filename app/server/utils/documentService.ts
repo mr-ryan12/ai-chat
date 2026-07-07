@@ -1,19 +1,155 @@
 // Packages
+import { Prisma } from "@prisma/client";
 import { prisma } from "~/server/db.server";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { MarkdownTextSplitter } from "langchain/text_splitter";
 import { v4 as uuid } from "uuid";
 import fs from "fs/promises";
 
+// Utils
+import {
+  referencesSpecificDocument,
+  wantsFullDocument,
+} from "~/server/utils/documentIntent";
+import { logger } from "~/server/utils/logger";
+
+// Packages (node)
+import { randomUUID } from "crypto";
+
 // Types
 import { DocumentChunk } from "~/types/documentChunk.types";
 
-const embeddings = new OpenAIEmbeddings();
+// text-embedding-3-small: 1536 dims (matches the vector(1536) column), a quality
+// upgrade over the old ada-002 default at ~5x lower cost.
+const EMBEDDING_MODEL = "text-embedding-3-small";
+const embeddings = new OpenAIEmbeddings({ model: EMBEDDING_MODEL });
+
+// Retrieval limits. MAX_CHUNKS_PER_QUERY is the hard cap required by the DB rules (≤ 10).
+const MAX_CHUNKS_PER_QUERY = 10;
+const SEMANTIC_TOP_K = 5;
+// Candidate pool pulled from each retriever before fusion.
+const HYBRID_CANDIDATE_POOL = 20;
+// RRF constant — dampens the weight of top ranks so lower ranks still contribute.
+const RRF_K = 60;
+// Relevance floor for corpus-wide vector search (L2 distance via the `<->` operator).
+const VECTOR_DISTANCE_THRESHOLD = 0.85;
+// Hard ceiling on injected document context (chat-responses.md). Token count is
+// estimated (~chars/token) to stay dependency-free — a guardrail, not a billing meter.
+const MAX_CONTEXT_TOKENS = 3000;
+const CHARS_PER_TOKEN = 4;
+const NO_CONTENT_MESSAGE =
+  "I couldn't find any relevant content in the documents.";
+
+interface RankedChunk {
+  id: string;
+  content: string;
+}
+
+interface RetrievalScope {
+  userId: string;
+  documentId?: string;
+}
+
+// Combine ranked lists by Reciprocal Rank Fusion: each list contributes 1/(k+rank)
+// to a chunk's score, so chunks ranked highly by several retrievers rise to the top —
+// without normalizing the incomparable score scales of vector distance vs. ts_rank.
+function reciprocalRankFusion(
+  rankedLists: RankedChunk[][],
+  k: number,
+  limit: number
+): RankedChunk[] {
+  const scores = new Map<string, { content: string; score: number }>();
+  for (const list of rankedLists) {
+    list.forEach((chunk, index) => {
+      const contribution = 1 / (k + index + 1);
+      const existing = scores.get(chunk.id);
+      if (existing) {
+        existing.score += contribution;
+      } else {
+        scores.set(chunk.id, { content: chunk.content, score: contribution });
+      }
+    });
+  }
+
+  return [...scores.entries()]
+    .sort((a, b) => b[1].score - a[1].score)
+    .slice(0, limit)
+    .map(([id, { content }]) => ({ id, content }));
+}
+
+// Hybrid retrieval: pgvector similarity + Postgres full-text search, fused with RRF
+// and scoped to the authenticated user (and optionally a single document).
+export class HybridRetriever {
+  constructor(private readonly embeddings: OpenAIEmbeddings) {}
+
+  async retrieve(
+    query: string,
+    scope: RetrievalScope,
+    limit: number
+  ): Promise<RankedChunk[]> {
+    const queryEmbedding = await this.embeddings.embedQuery(query);
+    const poolSize = Math.max(limit, HYBRID_CANDIDATE_POOL);
+
+    const [vectorHits, fullTextHits] = await Promise.all([
+      this.vectorSearch(queryEmbedding, scope, poolSize),
+      this.fullTextSearch(query, scope, poolSize),
+    ]);
+
+    return reciprocalRankFusion([vectorHits, fullTextHits], RRF_K, limit);
+  }
+
+  private scopeFilter(scope: RetrievalScope): Prisma.Sql {
+    return scope.documentId
+      ? Prisma.sql`AND dc."documentId" = ${scope.documentId}`
+      : Prisma.empty;
+  }
+
+  private vectorSearch(
+    queryEmbedding: number[],
+    scope: RetrievalScope,
+    limit: number
+  ): Promise<RankedChunk[]> {
+    // Apply a relevance floor for corpus-wide search so unrelated documents are
+    // excluded (and a truly-empty result can surface the no-content message). When a
+    // specific document is already targeted, return its best chunks without a floor.
+    const relevanceFloor = scope.documentId
+      ? Prisma.empty
+      : Prisma.sql`AND dc.embedding <-> ${queryEmbedding}::vector < ${VECTOR_DISTANCE_THRESHOLD}`;
+
+    return prisma.$queryRaw<RankedChunk[]>(Prisma.sql`
+      SELECT dc.id, dc.content
+      FROM "DocumentChunk" dc
+      JOIN "Document" d ON dc."documentId" = d.id
+      WHERE d."userId" = ${scope.userId} ${this.scopeFilter(scope)} ${relevanceFloor}
+      ORDER BY dc.embedding <-> ${queryEmbedding}::vector ASC
+      LIMIT ${limit}
+    `);
+  }
+
+  private fullTextSearch(
+    query: string,
+    scope: RetrievalScope,
+    limit: number
+  ): Promise<RankedChunk[]> {
+    return prisma.$queryRaw<RankedChunk[]>(Prisma.sql`
+      SELECT dc.id, dc.content
+      FROM "DocumentChunk" dc
+      JOIN "Document" d ON dc."documentId" = d.id
+      WHERE d."userId" = ${scope.userId} ${this.scopeFilter(scope)}
+        AND dc.fts @@ plainto_tsquery('english', ${query})
+      ORDER BY ts_rank(dc.fts, plainto_tsquery('english', ${query})) DESC
+      LIMIT ${limit}
+    `);
+  }
+}
+
+const hybridRetriever = new HybridRetriever(embeddings);
 
 export async function ingestDocument(
   filePath: string,
   userId: string,
-  metadata: Record<string, unknown> = {}
+  metadata: Record<string, unknown> = {},
+  conversationId: string | null = null
 ): Promise<void> {
   // Read the document
   const text = await fs.readFile(filePath, "utf-8");
@@ -33,18 +169,20 @@ export async function ingestDocument(
   const contentHash = typeof metadata.contentHash === "string" ? metadata.contentHash : null;
   await prisma.$executeRawUnsafe(
     `
-    INSERT INTO "Document" (id, title, "userId", "contentHash", embedding, metadata)
-    VALUES ($1, $2, $3, $4, $5::vector, $6::jsonb)
+    INSERT INTO "Document" (id, title, "userId", "conversationId", "contentHash", embedding, metadata)
+    VALUES ($1, $2, $3, $4, $5, $6::vector, $7::jsonb)
     `,
     documentId,
     metadata.title || filePath,
     userId,
+    conversationId,
     contentHash,
     docEmbedding,
     JSON.stringify(metadata)
   );
 
-  // Process each chunk
+  // Process each chunk. DocumentChunk.fts is a generated column (to_tsvector on
+  // content), so no full-text column needs to be written here.
   let orderInDoc = 0;
   for (const doc of docs) {
     // Generate embedding for the chunk
@@ -71,41 +209,113 @@ export async function ingestDocument(
   }
 }
 
-export async function queryDocuments(query: string, userId: string): Promise<string> {
-  // Generate embedding for the query
-  const queryEmbedding = await embeddings.embedQuery(query);
+export async function queryDocuments(
+  query: string,
+  userId: string,
+  conversationId?: string
+): Promise<string> {
+  // Layered routing: figure out whether the user is pointing at one specific
+  // document ("the doc I just uploaded") before falling back to corpus-wide search.
+  const targetDocumentId = await resolveTargetDocumentId(
+    userId,
+    query,
+    conversationId
+  );
 
-  // Find similar chunks scoped to the authenticated user via the Document relation
-  // DISTINCT ON (content) prevents duplicate chunks from multiple ingestions
-  const chunks = await prisma.$queryRaw<DocumentChunk[]>`
-    SELECT DISTINCT ON (dc.content) dc.content, dc.embedding <-> ${queryEmbedding}::vector AS distance
-    FROM "DocumentChunk" dc
-    JOIN "Document" d ON dc."documentId" = d.id
-    WHERE d."userId" = ${userId}
-      AND dc.embedding <-> ${queryEmbedding}::vector < 0.85
-    ORDER BY dc.content, distance ASC
-  `;
-
-  // Re-sort by distance after dedup and take top 5
-  chunks.sort((a, b) => (a?.distance || 0) - (b?.distance || 0));
-  const topChunks = chunks.slice(0, 5);
-  // Format the response
-  if (topChunks.length === 0) {
-    return "I couldn't find any relevant content in the documents.";
+  let chunks: { content: string }[];
+  let wholeDocTruncated = false;
+  if (targetDocumentId && wantsFullDocument(query)) {
+    // Whole-document intent (summary): return the target doc's chunks in reading
+    // order. Fetch one past the cap to detect (and disclose) truncation, since the
+    // hard chunk cap can silently drop the tail of a long document otherwise.
+    const ordered = await getDocumentChunksInOrder(
+      targetDocumentId,
+      MAX_CHUNKS_PER_QUERY + 1
+    );
+    wholeDocTruncated = ordered.length > MAX_CHUNKS_PER_QUERY;
+    chunks = ordered.slice(0, MAX_CHUNKS_PER_QUERY);
+  } else {
+    // Hybrid search — scoped to the target document when one was resolved, else
+    // across all of the user's documents. Already bounded by SEMANTIC_TOP_K (≤ cap).
+    chunks = await hybridRetriever.retrieve(
+      query,
+      { userId, documentId: targetDocumentId ?? undefined },
+      SEMANTIC_TOP_K
+    );
   }
 
-  return topChunks.map((chunk) => chunk.content).join("\n\n");
+  if (chunks.length === 0) {
+    return NO_CONTENT_MESSAGE;
+  }
+
+  let context = chunks.map((chunk) => chunk.content).join("\n\n");
+  if (wholeDocTruncated) {
+    // Never present a partial document as the whole thing — disclose the cap.
+    context += `\n\n[Note: only the first ${MAX_CHUNKS_PER_QUERY} sections of the document are shown; it is longer than this summary covers.]`;
+  }
+  return enforceContextBudget(context, userId);
 }
 
-// HybridRetriever stub for agentic retrieval
-export class HybridRetriever {
-  async getRelevantDocuments(): Promise<DocumentChunk[]> {
-    // 1. Embed query
-    // 2. Run hybrid search (vector + FTS + metadata)
-    // 3. Group/merge chunks (by section/page/order)
-    // 4. Return as DocumentChunk[]
-    // TODO: Integrate ANN vector DB for large scale (e.g., Pinecone, Weaviate)
-    // TODO: Integrate agentic tools and executor here
-    return [];
+// Enforce the MAX_CONTEXT_TOKENS ceiling on injected context. Truncates
+// deterministically and logs a cost-limit event — never trims silently.
+function enforceContextBudget(context: string, userId: string): string {
+  const maxChars = MAX_CONTEXT_TOKENS * CHARS_PER_TOKEN;
+  if (context.length <= maxChars) {
+    return context;
   }
+
+  logger.logCostLimit({
+    correlationId: randomUUID(),
+    userId,
+    limitTokens: MAX_CONTEXT_TOKENS,
+    estimatedTokens: Math.ceil(context.length / CHARS_PER_TOKEN),
+  });
+
+  const notice = "\n\n[Context truncated to fit the token budget.]";
+  return context.slice(0, maxChars - notice.length) + notice;
+}
+
+// Resolve which single document (if any) the user is asking about.
+// Priority: (1) the current conversation's most recent upload, (2) the user's most
+// recent upload overall when they reference a specific/just-uploaded doc, else null.
+async function resolveTargetDocumentId(
+  userId: string,
+  query: string,
+  conversationId?: string
+): Promise<string | null> {
+  if (conversationId) {
+    const conversationDoc = await prisma.document.findFirst({
+      where: { userId, conversationId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (conversationDoc) {
+      return conversationDoc.id;
+    }
+  }
+
+  if (referencesSpecificDocument(query)) {
+    const recentDoc = await prisma.document.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    return recentDoc?.id ?? null;
+  }
+
+  return null;
+}
+
+// Chunks of a single document in reading order — used for whole-document summaries.
+async function getDocumentChunksInOrder(
+  documentId: string,
+  limit: number
+): Promise<DocumentChunk[]> {
+  return prisma.$queryRaw<DocumentChunk[]>`
+    SELECT content, "orderInDoc"
+    FROM "DocumentChunk"
+    WHERE "documentId" = ${documentId}
+    ORDER BY "orderInDoc" ASC NULLS LAST
+    LIMIT ${limit}
+  `;
 }

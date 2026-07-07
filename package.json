@@ -8,13 +8,14 @@
     "dev": "remix vite:dev --port 3000",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "remix-serve ./build/server/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc",
     "db:push": "prisma db push",
-    "migrate:new": "prisma migrate dev",
+    "migrate:new": "prisma migrate dev --create-only",
     "migrate:latest": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
-    "postinstall": "prisma generate",
-    "run:ingest": "tsx ./app/server/scripts/ingest.ts"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@langchain/core": "^0.3.42",
@@ -46,6 +47,10 @@
   },
   "devDependencies": {
     "@remix-run/dev": "^2.16.0",
+    "@remix-run/testing": "2.16.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16",
     "@types/multer": "^1.4.12",
     "@types/react": "^18.2.20",
     "@types/react-dom": "^18.2.7",
@@ -58,12 +63,14 @@
     "eslint-plugin-jsx-a11y": "^6.7.1",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.1.6",
     "vite": "^6.0.0",
     "vite-plugin-checker": "^0.9.3",
-    "vite-tsconfig-paths": "^4.2.1"
+    "vite-tsconfig-paths": "^4.2.1",
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": ">=20.0.0"

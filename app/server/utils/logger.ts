@@ -63,6 +63,31 @@ class Logger {
       "Request failed"
     );
   }
+
+  // Structured cost-limit event (never log raw content — counts + ids only).
+  logCostLimit({
+    correlationId,
+    userId,
+    limitTokens,
+    estimatedTokens,
+  }: {
+    correlationId: string;
+    userId: string;
+    limitTokens: number;
+    estimatedTokens: number;
+  }) {
+    pinoLogger.warn(
+      {
+        level: "WARN",
+        event: "cost_limit",
+        correlationId,
+        userId,
+        limitTokens,
+        estimatedTokens,
+      },
+      "Document context truncated to enforce token budget"
+    );
+  }
 }
 
 const logger = new Logger();
